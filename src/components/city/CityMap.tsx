@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BuildingBox } from './BuildingBox';
 import { DataCar } from './DataCar';
 import { useCPUStore } from '@/store/use-cpu-store';
@@ -11,15 +11,29 @@ import {
   Warehouse, 
   Layers, 
   Clock,
-  Navigation
+  Navigation,
+  Sun,
+  Moon,
+  TreeDeciduous,
+  Car
 } from 'lucide-react';
 
 export const CityMap = () => {
-  const { pc, registers, memory, stack, currentAnimations, speed } = useCPUStore();
+  const { 
+    pc, registers, memory, stack, currentAnimations, speed, theme, toggleTheme, introPhase, setIntroPhase 
+  } = useCPUStore();
+
+  // Intro Sequence
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIntroPhase(Math.min(introPhase + 1, 6));
+    }, 200);
+    return () => clearInterval(timer);
+  }, [introPhase]);
 
   const RoadLabel = ({ x, y, rotate = 0, text }: { x: string, y: string, rotate?: number, text: string }) => (
     <div 
-      className="absolute pointer-events-none text-[9px] font-medium text-muted uppercase tracking-[0.2em] opacity-60"
+      className="absolute pointer-events-none text-[9px] font-medium text-muted uppercase tracking-[0.2em] opacity-40"
       style={{ left: x, top: y, transform: `rotate(${rotate}deg)` }}
     >
       {text}
@@ -28,7 +42,7 @@ export const CityMap = () => {
 
   const RoadArrow = ({ x, y, rotate = 0 }: { x: string, y: string, rotate?: number }) => (
     <svg 
-      className="absolute pointer-events-none opacity-40 fill-muted"
+      className="absolute pointer-events-none opacity-20 fill-muted"
       width="8" height="8" viewBox="0 0 8 8"
       style={{ left: x, top: y, transform: `rotate(${rotate}deg)` }}
     >
@@ -36,14 +50,28 @@ export const CityMap = () => {
     </svg>
   );
 
+  const DecorativeTree = ({ x, y }: { x: number, y: number }) => (
+    <TreeDeciduous 
+      className="absolute text-emerald-600/30 w-4 h-4" 
+      style={{ left: `${x}px`, top: `${y}px` }} 
+    />
+  );
+
+  const ParkedCar = ({ x, y, color }: { x: number, y: number, color: string }) => (
+    <Car 
+      className="absolute w-3 h-3 opacity-20" 
+      style={{ left: `${x}px`, top: `${y}px`, color }} 
+    />
+  );
+
   return (
-    <div className="relative flex-1 bg-map overflow-hidden bg-city-grid">
+    <div className={cn("relative flex-1 bg-map overflow-hidden bg-city-grid transition-all duration-700", theme === 'night' && "night-mode")}>
       {/* SVG Roads */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50">
         <defs>
           <pattern id="roadPattern" width="10" height="10" patternUnits="userSpaceOnUse">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#D4CFC5" strokeWidth="10" />
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#C2BDB3" strokeWidth="2" strokeDasharray="4 4" />
+            <line x1="0" y1="5" x2="10" y2="5" className="stroke-road" strokeWidth="10" />
+            <line x1="0" y1="5" x2="10" y2="5" className="stroke-muted/20" strokeWidth="2" strokeDasharray="4 4" />
           </pattern>
         </defs>
         
@@ -62,10 +90,19 @@ export const CityMap = () => {
 
       {/* Road Arrows */}
       <RoadArrow x="396px" y="150px" rotate={180} />
-      <RoadArrow x="396px" y="250px" rotate={180} />
-      <RoadArrow x="410px" y="200px" rotate={0} />
       <RoadArrow x="250px" y="296px" rotate={90} />
       <RoadArrow x="500px" y="446px" rotate={90} />
+
+      {/* Decorations */}
+      <DecorativeTree x={220} y={120} />
+      <DecorativeTree x={240} y={135} />
+      <DecorativeTree x={500} y={180} />
+      <DecorativeTree x={520} y={550} />
+      <DecorativeTree x={540} y={565} />
+      
+      <ParkedCar x={360} y={60} color="#185FA5" />
+      <ParkedCar x={440} y={60} color="#1D9E75" />
+      <ParkedCar x={640} y={150} color="#BA7517" />
 
       {/* Data Cars */}
       {currentAnimations.map(anim => (
@@ -81,36 +118,40 @@ export const CityMap = () => {
         )
       ))}
 
-      {/* Program Counter */}
-      <BuildingBox
-        id="PC"
-        title="PC Tower"
-        description="The Program Counter tracks the current address of the instruction being executed."
-        icon={<Clock className="w-3 h-3" />}
-        style={{ top: '40px', left: '400px', transform: 'translateX(-50%)' }}
-        width={140}
-        height={60}
-        color="bg-[#F1EFE8]"
-        headerColor="bg-[#888780]"
-        borderColor="border-[#888780]"
-      >
-        <div className="flex flex-col items-center justify-center h-full">
-          <span className="text-[12px] font-code font-bold text-[#888780]">IP: 0x{pc.toString(16).padStart(4, '0')}</span>
-        </div>
-      </BuildingBox>
+      {/* BUILDINGS WITH INTRO ANIMATION */}
+      
+      {/* PC Tower */}
+      {introPhase >= 1 && (
+        <BuildingBox
+          id="PC"
+          title="PC Tower"
+          description="The Program Counter tracks the current address of the instruction being executed."
+          icon={<Clock className="w-3 h-3" />}
+          style={{ top: '40px', left: '400px', transform: 'translateX(-50%)' }}
+          width={140}
+          height={60}
+          color="bg-[#F1EFE8] night-mode:bg-[#3D362E]"
+          headerColor="bg-[#888780]"
+          borderColor="border-[#888780]"
+        >
+          <div className="flex flex-col items-center justify-center h-full">
+            <span className="text-[12px] font-code font-bold text-[#888780]">IP: 0x{pc.toString(16).padStart(4, '0')}</span>
+          </div>
+        </BuildingBox>
+      )}
 
       {/* Register Apartments */}
       <div className="absolute top-[100px] left-[40px] flex flex-col gap-1.5">
-        {['R0', 'R1', 'R2', 'R3'].map((reg) => (
+        {['R0', 'R1', 'R2', 'R3'].map((reg, idx) => introPhase >= 2 + idx && (
           <BuildingBox
             key={reg}
             id={reg}
             title={reg}
-            description={`General purpose register ${reg} used for fast data access and manipulation.`}
+            description={`Fast storage for immediate data manipulation.`}
             icon={<Home className="w-3 h-3" />}
             width={88}
             height={50}
-            color="bg-[#EBF4FD]"
+            color="bg-[#EBF4FD] night-mode:bg-[#1A2E44]"
             headerColor="bg-[#185FA5]"
             borderColor="border-[#185FA5]"
           >
@@ -124,79 +165,93 @@ export const CityMap = () => {
       </div>
 
       {/* ALU Factory */}
-      <BuildingBox
-        id="ALU"
-        title="ALU Complex"
-        description="The Arithmetic Logic Unit performs all mathematical and logical operations."
-        icon={<Factory className="w-3.5 h-3.5" />}
-        style={{ top: '270px', left: '400px', transform: 'translateX(-50%)' }}
-        width={190}
-        height={120}
-        color="bg-[#E1F5EE]"
-        headerColor="bg-[#0A5D48]"
-        borderColor="border-[#0A5D48]"
-        prominent
-      >
-        <div className="flex flex-col items-center justify-center h-full gap-2">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0F6E56] shadow-inner">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="text-[9px] text-white font-bold uppercase tracking-wider">Active</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-code font-bold text-[#0F6E56]">COMPUTING...</span>
-          </div>
-        </div>
-      </BuildingBox>
-
-      {/* Memory Warehouse */}
-      <BuildingBox
-        id="RAM"
-        title="RAM Depot"
-        description="Main system memory for storing program code and data variables."
-        icon={<Warehouse className="w-3 h-3" />}
-        style={{ top: '100px', right: '40px' }}
-        width={124}
-        height={180}
-        color="bg-[#FEF3DC]"
-        headerColor="bg-[#BA7517]"
-        borderColor="border-[#BA7517]"
-      >
-        <div className="p-1.5 flex flex-col gap-1">
-          {memory.slice(0, 6).map((val, i) => (
-            <div key={i} className="flex justify-between items-center text-[9px] font-code border-b border-warning/10 pb-0.5">
-              <span className="text-warning/70 font-bold">[{i}]</span>
-              <span key={val} className="font-semibold number-flip-in">{val || 0}</span>
+      {introPhase >= 4 && (
+        <BuildingBox
+          id="ALU"
+          title="ALU Complex"
+          description="Performs all mathematical and logical operations."
+          icon={<Factory className="w-3.5 h-3.5" />}
+          style={{ top: '270px', left: '400px', transform: 'translateX(-50%)' }}
+          width={190}
+          height={120}
+          color="bg-[#E1F5EE] night-mode:bg-[#0F2D25]"
+          headerColor="bg-[#0A5D48]"
+          borderColor="border-[#0A5D48]"
+          prominent
+        >
+          <div className="flex flex-col items-center justify-center h-full gap-2">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0F6E56] shadow-inner">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="text-[9px] text-white font-bold uppercase tracking-wider">Active</span>
             </div>
-          ))}
-        </div>
-      </BuildingBox>
-
-      {/* Stack Garage */}
-      <BuildingBox
-        id="STACK"
-        title="Stack Yard"
-        description="LIFO (Last-In-First-Out) storage used for function calls and local state."
-        icon={<Layers className="w-3 h-3" />}
-        style={{ bottom: '80px', right: '40px' }}
-        width={124}
-        height={180}
-        color="bg-[#FDF0F5]"
-        headerColor="bg-[#993556]"
-        borderColor="border-[#993556]"
-        prominent={stack.length > 8}
-      >
-        <div className={cn("p-2 flex flex-col-reverse h-full justify-start gap-1.5", stack.length > 8 && "shake-anim")}>
-          {stack.slice(0, 5).map((val, i) => (
-            <div key={i} className="h-6 w-full rounded bg-white/60 border border-[#993556]/20 flex items-center justify-center shadow-sm animate-in slide-in-from-top-2 duration-300">
-               <span className="text-[10px] font-code font-bold text-stack">{val}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[14px] font-code font-bold text-[#0F6E56]">COMPUTING...</span>
             </div>
-          ))}
-          {stack.length === 0 && <div className="text-[9px] text-dim text-center mt-4">Empty</div>}
-        </div>
-      </BuildingBox>
+          </div>
+        </BuildingBox>
+      )}
+
+      {/* RAM Depot */}
+      {introPhase >= 5 && (
+        <BuildingBox
+          id="RAM"
+          title="RAM Depot"
+          description="Main system memory for program code and variables."
+          icon={<Warehouse className="w-3 h-3" />}
+          style={{ top: '100px', right: '40px' }}
+          width={124}
+          height={180}
+          color="bg-[#FEF3DC] night-mode:bg-[#3D2B12]"
+          headerColor="bg-[#BA7517]"
+          borderColor="border-[#BA7517]"
+        >
+          <div className="p-1.5 flex flex-col gap-1">
+            {memory.slice(0, 6).map((val, i) => (
+              <div key={i} className="flex justify-between items-center text-[9px] font-code border-b border-warning/10 pb-0.5">
+                <span className="text-warning/70 font-bold">[{i}]</span>
+                <span key={val} className="font-semibold number-flip-in">{val || 0}</span>
+              </div>
+            ))}
+          </div>
+        </BuildingBox>
+      )}
+
+      {/* Stack Yard */}
+      {introPhase >= 6 && (
+        <BuildingBox
+          id="STACK"
+          title="Stack Yard"
+          description="LIFO storage for function calls and local state."
+          icon={<Layers className="w-3 h-3" />}
+          style={{ bottom: '80px', right: '40px' }}
+          width={124}
+          height={180}
+          color="bg-[#FDF0F5] night-mode:bg-[#2D161C]"
+          headerColor="bg-[#993556]"
+          borderColor="border-[#993556]"
+          prominent={stack.length > 8}
+        >
+          <div className={cn("p-2 flex flex-col-reverse h-full justify-start gap-1.5", stack.length > 8 && "shake-anim")}>
+            {stack.slice(0, 5).map((val, i) => (
+              <div key={i} className="h-6 w-full rounded bg-white/60 night-mode:bg-white/10 border border-[#993556]/20 flex items-center justify-center shadow-sm animate-in slide-in-from-top-2 duration-300">
+                 <span className="text-[10px] font-code font-bold text-stack">{val}</span>
+              </div>
+            ))}
+            {stack.length === 0 && <div className="text-[9px] text-dim text-center mt-4">Empty</div>}
+          </div>
+        </BuildingBox>
+      )}
+
+      {/* Theme Toggle */}
+      <button 
+        onClick={toggleTheme}
+        className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 night-mode:bg-white/10 border border-border shadow-md hover:scale-110 transition-transform"
+      >
+        {theme === 'day' ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-yellow-400" />}
+      </button>
 
       {/* Compass Rose */}
-      <div className="absolute bottom-6 right-48 flex flex-col items-center opacity-30 pointer-events-none">
+      <div className="absolute bottom-16 right-48 flex flex-col items-center opacity-30 pointer-events-none">
         <Navigation className="w-6 h-6 text-muted-foreground rotate-45" />
         <div className="grid grid-cols-3 grid-rows-3 gap-0 text-[10px] font-bold text-muted-foreground">
           <span className="col-start-2 row-start-1 text-center">N</span>

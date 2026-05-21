@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,6 +25,19 @@
     --ring: 158 69% 37%;
     --radius: 0.5rem;
   }
+
+  .night-mode {
+    --background: 24 10% 15%;
+    --foreground: 40 40% 98%;
+    --card: 24 10% 20%;
+    --card-foreground: 40 40% 98%;
+    --border: 24 10% 25%;
+    --muted: 24 10% 10%;
+    --muted-foreground: 24 10% 60%;
+    --accent: 158 69% 10%;
+    --map: #2C2620;
+    --road: #3D362E;
+  }
 }
 
 @layer utilities {
@@ -35,8 +47,12 @@
   }
   
   .bg-city-grid {
-    background-image: linear-gradient(#E5E0D5 1px, transparent 1px), linear-gradient(90deg, #E5E0D5 1px, transparent 1px);
-    background-size: 100px 100px;
+    background-image: linear-gradient(#E5E0D5 0.5px, transparent 0.5px), linear-gradient(90deg, #E5E0D5 0.5px, transparent 0.5px);
+    background-size: 50px 50px;
+  }
+
+  .night-mode .bg-city-grid {
+    background-image: linear-gradient(#3D362E 0.5px, transparent 0.5px), linear-gradient(90deg, #3D362E 0.5px, transparent 0.5px);
   }
 
   .scrollbar-hide::-webkit-scrollbar {
@@ -47,8 +63,17 @@
     scrollbar-width: none;
   }
 
+  /* Building Shadow with isometric tilt feel */
   .building-shadow {
-    box-shadow: inset 2px 2px 4px rgba(0,0,0,0.05), 1px 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 
+      inset 1px 1px 2px rgba(255,255,255,0.4),
+      4px 4px 0px rgba(0,0,0,0.05);
+  }
+
+  .night-mode .building-shadow {
+    box-shadow: 
+      inset 1px 1px 2px rgba(255,255,255,0.05),
+      4px 4px 0px rgba(0,0,0,0.2);
   }
 
   .animate-pulse-slow {
@@ -74,7 +99,7 @@
   }
   
   @keyframes slide-up-in {
-    from { transform: translateY(20px); opacity: 0; }
+    from { transform: translateY(10px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
   }
 
@@ -126,10 +151,16 @@
     30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
     40%, 60% { transform: translate3d(4px, 0, 0); }
   }
+
+  /* Window glow for night mode */
+  .night-mode .building-window {
+    background-color: #FFD700;
+    box-shadow: 0 0 4px #FFD700;
+  }
 }
 
 body {
-  @apply bg-background text-foreground;
+  @apply bg-background text-foreground transition-colors duration-500;
 }
 
 pre, code {

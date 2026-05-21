@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -40,7 +39,7 @@ export const BuildingBox = ({
   style,
   prominent
 }: BuildingBoxProps) => {
-  const activeBuildings = useCPUStore(state => state.activeBuildings);
+  const { activeBuildings, theme } = useCPUStore();
   const status = id ? activeBuildings[id] : null;
 
   return (
@@ -54,7 +53,8 @@ export const BuildingBox = ({
               color,
               prominent ? "border-2 shadow-lg scale-105 z-10" : "hover:shadow-md hover:-translate-y-0.5",
               status === 'source' && "pulse-source",
-              status === 'dest' && "pulse-dest"
+              status === 'dest' && "pulse-dest",
+              status === 'error' && "shake-anim border-destructive bg-destructive/10"
             )}
             style={{
               width: `${width}px`,
@@ -71,6 +71,11 @@ export const BuildingBox = ({
                 {icon}
                 {title}
               </span>
+              {/* Window grid for night mode */}
+              <div className="flex gap-1">
+                <div className="w-1 h-1 rounded-sm bg-white/20 building-window" />
+                <div className="w-1 h-1 rounded-sm bg-white/20 building-window" />
+              </div>
             </div>
             <div className="h-[calc(100%-22px)] p-1 overflow-hidden bg-white/20 backdrop-blur-[1px]">
               {children}

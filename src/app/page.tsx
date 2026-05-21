@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -28,24 +27,24 @@ export default function CPUCity() {
   // Playback Loop
   useEffect(() => {
     let interval: any;
-    if (!isPaused) {
+    if (!isPaused && pc < instructions.length && pc !== -1) {
       interval = setInterval(() => {
         step();
-      }, 1500); // Buffer for animations
+      }, 1500);
     }
     return () => clearInterval(interval);
-  }, [isPaused, step]);
+  }, [isPaused, step, pc, instructions.length]);
 
   const handleAiArchitect = async () => {
     try {
       setIsGenerating(true);
       const res = await generateAssemblyCode({ 
-        description: "Calculate the first 5 numbers of the Fibonacci sequence and store them in memory." 
+        description: "Draft a program to multiply R1 by 2 and store it in MEM[5]" 
       });
       if (res.assemblyCode) {
         setProgram(res.assemblyCode);
         toast({
-          title: "Architecture Updated",
+          title: "Blueprint Updated",
           description: "AI Architect has drafted a new algorithm.",
         });
       }
@@ -63,7 +62,7 @@ export default function CPUCity() {
   const currentInstruction = instructions[pc]?.raw || (pc === -1 ? "HALTED" : "IDLE");
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden selection:bg-primary/20">
+    <div className="flex flex-col h-screen overflow-hidden selection:bg-primary/20 transition-colors duration-500">
       <Header 
         currentInstruction={currentInstruction} 
         onReset={reset}
@@ -85,20 +84,20 @@ export default function CPUCity() {
 
       {/* READ Input Modal */}
       <Dialog open={!!awaitingInput} onOpenChange={() => {}}>
-        <DialogContent className="bg-white border-border shadow-2xl max-w-sm">
+        <DialogContent className="bg-[#FAF7F2] border-border shadow-2xl max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-primary font-bold">User Input Required</DialogTitle>
+            <DialogTitle className="text-primary font-bold">Signal Requested</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             <p className="text-sm text-muted-foreground">
-              The program is requesting a value to store in <span className="font-code font-bold text-foreground">{awaitingInput?.register}</span>.
+              The city requires a numeric input to store in <span className="font-code font-bold text-foreground">{awaitingInput?.register}</span>.
             </p>
             <Input 
               type="number" 
               placeholder="Enter value..." 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="border-primary/20 focus-visible:ring-primary"
+              className="border-primary/20 bg-white focus-visible:ring-primary"
             />
             <Button 
               onClick={() => {
@@ -107,15 +106,15 @@ export default function CPUCity() {
               }}
               className="bg-primary hover:bg-primary/90 text-white font-bold"
             >
-              Confirm Input
+              Confirm Signal
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {isGenerating && (
-        <div className="fixed inset-0 z-[100] bg-panel/80 flex items-center justify-center backdrop-blur-sm animate-in fade-in">
-          <div className="bg-panel border border-border p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+        <div className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-border p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             <div className="text-center">
               <h3 className="text-lg font-semibold">AI Architect at Work</h3>

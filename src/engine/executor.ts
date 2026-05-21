@@ -1,4 +1,3 @@
-
 import { Instruction } from './parser';
 
 export interface ExecutionResult {
@@ -8,8 +7,9 @@ export interface ExecutionResult {
   stack?: number[];
   logMessage: string;
   animations: any[];
-  activeBuildings: Record<string, 'source' | 'dest' | null>;
+  activeBuildings: Record<string, 'source' | 'dest' | 'error' | null>;
   requiresInput?: { register: string };
+  isError?: boolean;
 }
 
 export function executeInstruction(
@@ -31,7 +31,12 @@ export function executeInstruction(
     nextPC: pc + 1
   };
 
-  const getVal = (arg: string) => arg.startsWith('R') ? registers[arg] : parseInt(arg);
+  const getVal = (arg: string) => {
+    if (arg.startsWith('R')) return registers[arg] || 0;
+    if (arg.startsWith('MEM[')) return memory[getAddr(arg)] || 0;
+    return parseInt(arg) || 0;
+  };
+
   const getAddr = (arg: string) => parseInt(arg.replace('MEM[', '').replace('[', '').replace(']', ''));
 
   switch (opcode) {
@@ -39,7 +44,7 @@ export function executeInstruction(
       const dest = args[0];
       const val = parseInt(args[1]);
       result.registers = { ...registers, [dest]: val };
-      result.logMessage = `${dest} loaded with immediate ${val}`;
+      result.logMessage = `${dest} = ${val}`;
       result.activeBuildings = { 'PC': 'source', [dest]: 'dest' };
       result.animations = [{ type: 'move', start: 'PC', end: dest, color: '#378ADD', label: val.toString() }];
       break;
@@ -47,9 +52,15 @@ export function executeInstruction(
     case 'LOAD': {
       const dest = args[0];
       const addr = getAddr(args[1]);
+      if (addr >= memory.length) {
+        result.isError = true;
+        result.logMessage = `SEGFAULT: MEM[${addr}] out of bounds`;
+        result.activeBuildings = { 'RAM': 'error' };
+        break;
+      }
       const val = memory[addr] || 0;
       result.registers = { ...registers, [dest]: val };
-      result.logMessage = `${dest} loaded from MEM[${addr}]`;
+      result.logMessage = `${dest} = MEM[${addr}] (${val})`;
       result.activeBuildings = { 'RAM': 'source', [dest]: 'dest' };
       result.animations = [{ type: 'move', start: 'RAM', end: dest, color: '#EF9F27', label: val.toString() }];
       break;
@@ -58,10 +69,16 @@ export function executeInstruction(
       const src = args[0];
       const addr = getAddr(args[1]);
       const val = registers[src];
+      if (addr >= memory.length) {
+        result.isError = true;
+        result.logMessage = `SEGFAULT: MEM[${addr}] out of bounds`;
+        result.activeBuildings = { 'RAM': 'error' };
+        break;
+      }
       const newMem = [...memory];
       newMem[addr] = val;
       result.memory = newMem;
-      result.logMessage = `Stored ${val} from ${src} to MEM[${addr}]`;
+      result.logMessage = `MEM[${addr}] = ${val}`;
       result.activeBuildings = { [src]: 'source', 'RAM': 'dest' };
       result.animations = [{ type: 'move', start: src, end: 'RAM', color: '#EF9F27', label: val.toString() }];
       break;
@@ -80,7 +97,7 @@ export function executeInstruction(
       if (opcode === 'MUL') res = v1 * v2;
       
       result.registers = { ...registers, [dest]: res };
-      result.logMessage = `${opcode} ${s1}, ${s2} -> ${dest} (${res})`;
+      result.logMessage = `${dest} = ${v1} ${opcode === 'ADD' ? '+' : opcode === 'SUB' ? '-' : '*'} ${v2} = ${res}`;
       result.activeBuildings = { [s1]: 'source', [s2]: 'source', 'ALU': 'dest' };
       result.animations = [
         { type: 'move', start: s1, end: 'ALU', color: '#1D9E75', label: v1.toString(), delay: 0 },
@@ -93,18 +110,24 @@ export function executeInstruction(
       const src = args[0];
       const val = registers[src];
       result.stack = [...stack, val];
-      result.logMessage = `Pushed ${val} to stack`;
+      result.logMessage = `PUSHED ${val}`;
       result.activeBuildings = { [src]: 'source', 'STACK': 'dest' };
       result.animations = [{ type: 'move', start: src, end: 'STACK', color: '#D4537E', label: val.toString() }];
       break;
     }
     case 'POP': {
       const dest = args[0];
+      if (stack.length === 0) {
+        result.isError = true;
+        result.logMessage = `STACK UNDERFLOW: Pop from empty stack`;
+        result.activeBuildings = { 'STACK': 'error' };
+        break;
+      }
       const newStack = [...stack];
       const val = newStack.pop() || 0;
       result.stack = newStack;
       result.registers = { ...registers, [dest]: val };
-      result.logMessage = `Popped ${val} to ${dest}`;
+      result.logMessage = `POPPED ${val}`;
       result.activeBuildings = { 'STACK': 'source', [dest]: 'dest' };
       result.animations = [{ type: 'move', start: 'STACK', end: dest, color: '#D4537E', label: val.toString() }];
       break;
@@ -112,34 +135,49 @@ export function executeInstruction(
     case 'JUMP': {
       const label = args[0];
       result.nextPC = labels[label] ?? pc;
-      result.logMessage = `Jumping to ${label}`;
+      result.logMessage = `JMP -> ${label}`;
       result.activeBuildings = { 'PC': 'dest' };
       break;
     }
     case 'JUMPIF': {
+      // Syntax: JUMPIF R1 < 5 label
       const reg = args[0];
-      const label = args[1];
-      if (registers[reg] !== 0) {
+      const op = args[1];
+      const val = parseInt(args[2]);
+      const label = args[3];
+      
+      const regVal = registers[reg] || 0;
+      let condition = false;
+      if (op === '<') condition = regVal < val;
+      if (op === '>') condition = regVal > val;
+      if (op === '==') condition = regVal === val;
+      if (op === '!=') condition = regVal !== val;
+      if (op === '<=') condition = regVal <= val;
+      if (op === '>=') condition = regVal >= val;
+
+      if (condition) {
         result.nextPC = labels[label] ?? pc;
-        result.logMessage = `Condition met, jumping to ${label}`;
+        result.logMessage = `IF ${regVal} ${op} ${val} (True) -> JMP ${label}`;
       } else {
-        result.logMessage = `Condition not met, skipping jump`;
+        result.logMessage = `IF ${regVal} ${op} ${val} (False)`;
       }
       result.activeBuildings = { [reg]: 'source', 'PC': 'dest' };
       break;
     }
     case 'READ': {
       result.requiresInput = { register: args[0] };
-      result.logMessage = `Waiting for user input for ${args[0]}`;
+      result.logMessage = `WAITING INPUT -> ${args[0]}`;
       break;
     }
     case 'HLT': {
-      result.nextPC = -1; // Flag for finish
-      result.logMessage = `Execution Halted`;
+      result.nextPC = -1;
+      result.logMessage = `HALTED`;
       break;
     }
     default:
-      result.logMessage = `Unknown instruction ${opcode}`;
+      result.isError = true;
+      result.logMessage = `ILLEGAL OPCODE: ${opcode}`;
+      break;
   }
 
   return result;
