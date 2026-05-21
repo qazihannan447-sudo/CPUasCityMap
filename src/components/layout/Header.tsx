@@ -1,8 +1,21 @@
+
+'use client';
+
 import React from 'react';
 import { Building2, RotateCcw, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCPUStore } from '@/store/use-cpu-store';
 
-export const Header = ({ currentInstruction }: { currentInstruction?: string }) => {
+export const Header = ({ 
+  currentInstruction,
+  onReset
+}: { 
+  currentInstruction?: string,
+  onReset: () => void
+}) => {
+  const { isAnimating, pc, program } = useCPUStore();
+  const isRunning = pc > 0 && pc < program.length;
+
   return (
     <header className="h-[48px] border-b border-border bg-panel px-4 flex items-center justify-between z-50">
       <div className="flex items-center gap-2 group cursor-default">
@@ -19,8 +32,12 @@ export const Header = ({ currentInstruction }: { currentInstruction?: string }) 
         {currentInstruction && (
           <div className="bg-background border border-border px-4 py-1.5 rounded-lg shadow-sm flex items-center gap-3">
             <div className="relative">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(29,158,117,0.6)]" />
-              <div className="absolute inset-0 w-2 h-2 rounded-full bg-primary animate-ping opacity-75" />
+              <div className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                isAnimating ? "bg-primary animate-pulse shadow-[0_0_8px_rgba(29,158,117,0.6)]" : 
+                isRunning ? "bg-primary" : "bg-dim"
+              )} />
+              {isAnimating && <div className="absolute inset-0 w-2 h-2 rounded-full bg-primary animate-ping opacity-75" />}
             </div>
             <code className="text-[13px] font-code font-bold text-foreground">
               {currentInstruction}
@@ -34,7 +51,12 @@ export const Header = ({ currentInstruction }: { currentInstruction?: string }) 
           <Plus className="w-3.5 h-3.5" />
           New Program
         </Button>
-        <Button variant="outline" size="sm" className="h-8 border-destructive/20 text-destructive hover:bg-destructive/5 font-medium gap-1.5">
+        <Button 
+          onClick={onReset}
+          variant="outline" 
+          size="sm" 
+          className="h-8 border-destructive/20 text-destructive hover:bg-destructive/5 font-medium gap-1.5"
+        >
           <RotateCcw className="w-3.5 h-3.5" />
           Reset
         </Button>
@@ -42,3 +64,5 @@ export const Header = ({ currentInstruction }: { currentInstruction?: string }) 
     </header>
   );
 };
+
+import { cn } from '@/lib/utils';

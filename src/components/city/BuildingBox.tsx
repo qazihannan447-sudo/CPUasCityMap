@@ -1,3 +1,6 @@
+
+'use client';
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -6,8 +9,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCPUStore } from '@/store/use-cpu-store';
 
 interface BuildingBoxProps {
+  id?: string;
   title: string;
   description: string;
   icon: React.ReactNode;
@@ -22,6 +27,7 @@ interface BuildingBoxProps {
 }
 
 export const BuildingBox = ({
+  id,
   title,
   description,
   icon,
@@ -34,6 +40,9 @@ export const BuildingBox = ({
   style,
   prominent
 }: BuildingBoxProps) => {
+  const activeBuildings = useCPUStore(state => state.activeBuildings);
+  const status = id ? activeBuildings[id] : null;
+
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
@@ -43,7 +52,9 @@ export const BuildingBox = ({
               "absolute rounded-[10px] border-1.5 overflow-hidden transition-all duration-300 building-shadow",
               borderColor,
               color,
-              prominent ? "border-2 shadow-lg scale-105 z-10" : "hover:shadow-md hover:-translate-y-0.5"
+              prominent ? "border-2 shadow-lg scale-105 z-10" : "hover:shadow-md hover:-translate-y-0.5",
+              status === 'source' && "pulse-source",
+              status === 'dest' && "pulse-dest"
             )}
             style={{
               width: `${width}px`,
@@ -52,15 +63,16 @@ export const BuildingBox = ({
             }}
           >
             <div className={cn(
-              "h-[22px] flex items-center justify-between px-2 text-white",
-              headerColor
+              "h-[22px] flex items-center justify-between px-2 text-white relative",
+              headerColor,
+              prominent && "alu-sweep"
             )}>
-              <span className="text-[10px] font-medium uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[10px] font-medium uppercase tracking-wider flex items-center gap-1.5 z-10">
                 {icon}
                 {title}
               </span>
             </div>
-            <div className="h-[calc(100%-22px)] p-1 overflow-hidden">
+            <div className="h-[calc(100%-22px)] p-1 overflow-hidden bg-white/20 backdrop-blur-[1px]">
               {children}
             </div>
           </div>

@@ -1,18 +1,15 @@
+
+'use client';
+
 import React from 'react';
 import { Play, StepForward, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { useCPUStore } from '@/store/use-cpu-store';
 
-export const BottomBar = ({ 
-  currentStep, 
-  totalSteps, 
-  programName 
-}: { 
-  currentStep: number, 
-  totalSteps: number, 
-  programName: string 
-}) => {
-  const progress = (currentStep / totalSteps) * 100;
+export const BottomBar = () => {
+  const { pc, program, step, speed, setSpeed, isAnimating } = useCPUStore();
+  const progress = (pc / program.length) * 100;
 
   return (
     <footer className="h-[52px] border-t border-border bg-panel px-4 flex items-center justify-between z-50 relative">
@@ -26,7 +23,11 @@ export const BottomBar = ({
 
       <div className="flex items-center gap-4">
         <div className="flex flex-col items-center">
-          <Button className="bg-primary hover:bg-primary/90 text-white h-9 px-4 gap-2 arrow-slide-right group">
+          <Button 
+            onClick={step}
+            disabled={isAnimating || pc >= program.length}
+            className="bg-primary hover:bg-primary/90 text-white h-9 px-4 gap-2 arrow-slide-right group transition-transform active:scale-95"
+          >
             Step
             <StepForward className="w-4 h-4 arrow-icon" />
           </Button>
@@ -34,7 +35,7 @@ export const BottomBar = ({
         </div>
         
         <div className="flex flex-col items-center">
-          <Button variant="outline" className="border-primary text-primary hover:bg-primary/5 h-9 px-4 gap-2">
+          <Button variant="outline" className="border-primary text-primary hover:bg-primary/5 h-9 px-4 gap-2 active:scale-95">
             <Play className="w-4 h-4 fill-current" />
             Play
           </Button>
@@ -44,24 +45,30 @@ export const BottomBar = ({
         <div className="h-8 w-px bg-border mx-2" />
         
         <div className="flex items-center gap-4 w-[200px]">
-          <span className="text-[11px] font-medium text-dim whitespace-nowrap">0.5x</span>
-          <Slider defaultValue={[1]} max={4} step={0.5} className="flex-1" />
-          <span className="text-[11px] font-medium text-dim whitespace-nowrap">4x</span>
+          <span className="text-[11px] font-medium text-dim whitespace-nowrap">{speed}x</span>
+          <Slider 
+            value={[speed]} 
+            onValueChange={(v) => setSpeed(v[0])}
+            min={0.5} 
+            max={4} 
+            step={0.5} 
+            className="flex-1" 
+          />
         </div>
       </div>
 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-muted font-medium tracking-tight">{programName}</span>
+          <span className="text-[12px] text-muted font-medium tracking-tight">Current Program</span>
           <Button variant="ghost" size="icon" className="h-6 w-6">
             <ChevronDown className="w-4 h-4 text-muted" />
           </Button>
         </div>
         
         <div className="text-[13px] font-bold text-muted bg-background px-3 py-1 rounded-full border border-border flex items-center gap-2 shadow-sm">
-          <span className="text-primary">{currentStep.toString().padStart(2, '0')}</span>
+          <span className="text-primary">{pc.toString().padStart(2, '0')}</span>
           <span className="text-dim">/</span>
-          <span>{totalSteps.toString().padStart(2, '0')}</span>
+          <span>{program.length.toString().padStart(2, '0')}</span>
           <span className="text-[9px] text-dim font-bold uppercase tracking-widest ml-1">instr.</span>
         </div>
       </div>

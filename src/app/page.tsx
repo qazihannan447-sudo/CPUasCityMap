@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -9,27 +10,11 @@ import { BottomBar } from '@/components/layout/BottomBar';
 import { Toaster } from '@/components/ui/toaster';
 import { generateAssemblyCode } from '@/ai/flows/generate-assembly-code';
 import { toast } from '@/hooks/use-toast';
+import { useCPUStore } from '@/store/use-cpu-store';
 
 export default function CPUCity() {
-  const [code, setCode] = useState(`MOV R1, 10\nMOV R2, 20\nADD R3, R1, R2\nSTORE R3, [0]\nHLT`);
-  const [logs] = useState([
-    { step: 1, instruction: 'MOV R1, 10', result: 'R1 = 10' },
-    { step: 2, instruction: 'MOV R2, 20', result: 'R2 = 20' },
-    { step: 3, instruction: 'ADD R3, R1, R2', result: 'R3 = 30' },
-  ]);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  const registers = [
-    { id: 'R0', value: '0' },
-    { id: 'R1', value: '10' },
-    { id: 'R2', value: '20' },
-    { id: 'R3', value: '30', active: true },
-    { id: 'R4', value: '0' },
-    { id: 'R5', value: '0' },
-  ];
-
-  const stack = ['7', '12', '42'];
-  const memory = ['30', null, null, null, '120', null, null, null, null, null, null, null, null, null, null, null];
+  const { program, pc, setProgram, reset } = useCPUStore();
 
   const handleAiArchitect = async () => {
     try {
@@ -38,7 +23,7 @@ export default function CPUCity() {
         description: "Calculate the sum of numbers from 1 to 5 and store the result in memory address [4]" 
       });
       if (res.assemblyCode) {
-        setCode(res.assemblyCode);
+        setProgram(res.assemblyCode);
         toast({
           title: "Architecture Updated",
           description: "AI Architect has drafted a new algorithm.",
@@ -55,32 +40,26 @@ export default function CPUCity() {
     }
   };
 
+  const currentInstruction = program[pc] || "HLT";
+
   return (
     <div className="flex flex-col h-screen overflow-hidden selection:bg-primary/20">
-      <Header currentInstruction="ADD R1 R2 → R3" />
+      <Header 
+        currentInstruction={currentInstruction} 
+        onReset={reset}
+      />
       
       <main className="flex-1 flex overflow-hidden">
         <LeftPanel 
-          code={code} 
-          setCode={setCode} 
-          logs={logs} 
           onAiGenerate={handleAiArchitect}
         />
         
         <CityMap />
         
-        <RightPanel 
-          registers={registers} 
-          stack={stack} 
-          memory={memory} 
-        />
+        <RightPanel />
       </main>
 
-      <BottomBar 
-        currentStep={3} 
-        totalSteps={12} 
-        programName="Sum two numbers" 
-      />
+      <BottomBar />
       
       <Toaster />
 

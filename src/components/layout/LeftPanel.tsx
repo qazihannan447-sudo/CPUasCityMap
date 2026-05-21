@@ -1,34 +1,35 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-interface LogEntry {
-  step: number;
-  instruction: string;
-  result: string;
-}
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sparkles, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useCPUStore } from '@/store/use-cpu-store';
 
 export const LeftPanel = ({ 
-  code, 
-  setCode, 
-  logs,
-  onAiGenerate
+  onAiGenerate 
 }: { 
-  code: string, 
-  setCode: (c: string) => void,
-  logs: LogEntry[],
-  onAiGenerate: () => void
+  onAiGenerate: () => void 
 }) => {
-  const examples = ["Sum", "Array", "Stack", "Loop"];
+  const { program, setProgram, pc, executionLog } = useCPUStore();
+  const [codeValue, setCodeValue] = useState(program.join('\n'));
+
+  useEffect(() => {
+    setCodeValue(program.join('\n'));
+  }, [program]);
+
+  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setCodeValue(val);
+    setProgram(val);
+  };
 
   const getLogBorderColor = (instruction: string) => {
     const i = instruction.toUpperCase();
-    if (i.includes('LOAD')) return 'border-l-[secondary]';
+    if (i.includes('LOAD')) return 'border-l-secondary';
     if (i.includes('ADD') || i.includes('SUB')) return 'border-l-primary';
     if (i.includes('PUSH') || i.includes('POP')) return 'border-l-stack';
-    if (i.includes('J')) return 'border-l-warning';
     if (i.includes('STORE')) return 'border-l-orange-500';
     return 'border-l-border';
   };
@@ -36,8 +37,8 @@ export const LeftPanel = ({
   return (
     <aside className="w-[280px] h-[calc(100vh-48px-52px)] bg-panel border-r border-border flex flex-col">
       <div className="p-4 flex flex-col gap-4 overflow-hidden h-full">
-        <div>
-          <div className="flex justify-between items-center mb-2">
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center">
             <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim">Blueprint</h2>
             <button 
               onClick={onAiGenerate}
@@ -48,33 +49,27 @@ export const LeftPanel = ({
             </button>
           </div>
           <div className="relative rounded-lg overflow-hidden border border-[#2A2A2A] bg-[#1C1917] shadow-lg">
+            {/* Active line highlight */}
+            <div 
+              className="absolute left-0 w-full h-[22px] bg-primary/20 pointer-events-none transition-all duration-300"
+              style={{ top: `${pc * 22 + 16}px` }}
+            />
             <textarea
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="w-full h-[200px] bg-transparent text-[#E8E3D4] font-code text-[12px] p-4 resize-none focus:outline-none leading-relaxed selection:bg-primary/40"
+              value={codeValue}
+              onChange={handleCodeChange}
+              className="w-full h-[200px] bg-transparent text-[#E8E3D4] font-code text-[12px] p-4 resize-none focus:outline-none leading-[22px] selection:bg-primary/40 relative z-10"
               spellCheck={false}
             />
-          </div>
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {examples.map((ex) => (
-              <button
-                key={ex}
-                className="px-2.5 py-1 text-[10px] font-bold border border-border rounded-md hover:bg-background hover:border-dim transition-all text-muted uppercase tracking-tighter"
-              >
-                {ex}
-              </button>
-            ))}
           </div>
         </div>
 
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim mb-3">Execution Log</h2>
           
-          {/* Subtle fade-out gradient at the top */}
           <div className="absolute top-[28px] left-0 right-0 h-8 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none opacity-60" />
 
           <ScrollArea className="flex-1 rounded-lg border border-border bg-background/20 overflow-auto">
-            {logs.length === 0 ? (
+            {executionLog.length === 0 ? (
               <div className="p-8 text-center text-dim italic text-[11px] flex flex-col items-center gap-2">
                 <div className="w-10 h-[1px] bg-border" />
                 No signals captured
@@ -82,7 +77,7 @@ export const LeftPanel = ({
               </div>
             ) : (
               <div className="flex flex-col">
-                {logs.map((log, i) => (
+                {executionLog.map((log, i) => (
                   <div 
                     key={i} 
                     className={cn(
@@ -94,7 +89,10 @@ export const LeftPanel = ({
                       {log.step.toString().padStart(3, '0')}
                     </span>
                     <div className="flex-1">
-                      <div className="font-bold text-foreground font-code">{log.instruction}</div>
+                      <div className="font-bold text-foreground font-code flex items-center gap-2">
+                        {log.instruction}
+                        <Check className="w-3 h-3 text-primary opacity-50" />
+                      </div>
                       <div className="text-[11px] text-muted-foreground mt-0.5 italic">{log.result}</div>
                     </div>
                   </div>
@@ -108,7 +106,7 @@ export const LeftPanel = ({
           <div className="grid grid-cols-2 gap-y-2 gap-x-4">
             {[
               { label: 'Register', color: 'bg-secondary' },
-              { label: 'ALU', color: 'bg-alu' },
+              { label: 'ALU', color: 'bg-primary' },
               { label: 'Memory', color: 'bg-warning' },
               { label: 'Stack', color: 'bg-stack' },
             ].map((item) => (

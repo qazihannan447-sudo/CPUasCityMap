@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -65,6 +66,65 @@
   
   .arrow-icon {
     transition: transform 0.2s ease-out;
+  }
+
+  /* Flip Animation */
+  .number-flip-in {
+    animation: slide-up-in 0.3s ease-out forwards;
+  }
+  
+  @keyframes slide-up-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ALU Sweep */
+  .alu-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .alu-sweep::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: sweep 2s infinite linear;
+  }
+
+  @keyframes sweep {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(50%); }
+  }
+
+  /* Pulse Animations */
+  .pulse-source {
+    animation: pulse-blue 1s infinite ease-in-out;
+  }
+  .pulse-dest {
+    animation: pulse-teal 1s infinite ease-in-out;
+  }
+
+  @keyframes pulse-blue {
+    0%, 100% { border-color: #185FA5; box-shadow: 0 0 0px #185FA5; }
+    50% { border-color: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+  }
+  @keyframes pulse-teal {
+    0%, 100% { border-color: #1D9E75; box-shadow: 0 0 0px #1D9E75; }
+    50% { border-color: #10b981; box-shadow: 0 0 10px #10b981; }
+  }
+
+  .shake-anim {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
   }
 }
 
