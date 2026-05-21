@@ -12,12 +12,12 @@ export const LeftPanel = ({
 }: { 
   onAiGenerate: () => void 
 }) => {
-  const { program, setProgram, pc, executionLog } = useCPUStore();
-  const [codeValue, setCodeValue] = useState(program.join('\n'));
+  const { instructions, pc, setProgram, rawCode, executionLog } = useCPUStore();
+  const [codeValue, setCodeValue] = useState(rawCode);
 
   useEffect(() => {
-    setCodeValue(program.join('\n'));
-  }, [program]);
+    setCodeValue(rawCode);
+  }, [rawCode]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -31,8 +31,12 @@ export const LeftPanel = ({
     if (i.includes('ADD') || i.includes('SUB')) return 'border-l-primary';
     if (i.includes('PUSH') || i.includes('POP')) return 'border-l-stack';
     if (i.includes('STORE')) return 'border-l-orange-500';
+    if (i.includes('JUMP')) return 'border-l-warning';
     return 'border-l-border';
   };
+
+  // Find the editor line number to highlight based on current PC
+  const currentLineIndex = instructions[pc]?.line ?? -1;
 
   return (
     <aside className="w-[280px] h-[calc(100vh-48px-52px)] bg-panel border-r border-border flex flex-col">
@@ -50,10 +54,12 @@ export const LeftPanel = ({
           </div>
           <div className="relative rounded-lg overflow-hidden border border-[#2A2A2A] bg-[#1C1917] shadow-lg">
             {/* Active line highlight */}
-            <div 
-              className="absolute left-0 w-full h-[22px] bg-primary/20 pointer-events-none transition-all duration-300"
-              style={{ top: `${pc * 22 + 16}px` }}
-            />
+            {currentLineIndex !== -1 && (
+              <div 
+                className="absolute left-0 w-full h-[22px] bg-primary/20 pointer-events-none transition-all duration-300 border-l-2 border-primary"
+                style={{ top: `${currentLineIndex * 22 + 16}px` }}
+              />
+            )}
             <textarea
               value={codeValue}
               onChange={handleCodeChange}
@@ -77,7 +83,7 @@ export const LeftPanel = ({
               </div>
             ) : (
               <div className="flex flex-col">
-                {executionLog.map((log, i) => (
+                {[...executionLog].reverse().map((log, i) => (
                   <div 
                     key={i} 
                     className={cn(

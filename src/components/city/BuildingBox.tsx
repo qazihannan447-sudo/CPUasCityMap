@@ -65,7 +65,7 @@ export const BuildingBox = ({
             <div className={cn(
               "h-[22px] flex items-center justify-between px-2 text-white relative",
               headerColor,
-              prominent && "alu-sweep"
+              prominent && status === 'dest' && "alu-sweep"
             )}>
               <span className="text-[10px] font-medium uppercase tracking-wider flex items-center gap-1.5 z-10">
                 {icon}

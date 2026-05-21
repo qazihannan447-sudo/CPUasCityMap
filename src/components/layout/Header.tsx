@@ -1,10 +1,10 @@
-
 'use client';
 
 import React from 'react';
 import { Building2, RotateCcw, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCPUStore } from '@/store/use-cpu-store';
+import { cn } from '@/lib/utils';
 
 export const Header = ({ 
   currentInstruction,
@@ -13,8 +13,8 @@ export const Header = ({
   currentInstruction?: string,
   onReset: () => void
 }) => {
-  const { isAnimating, pc, program } = useCPUStore();
-  const isRunning = pc > 0 && pc < program.length;
+  const { isAnimating, pc, program, instructions } = useCPUStore();
+  const isRunning = pc >= 0 && pc < instructions.length;
 
   return (
     <header className="h-[48px] border-b border-border bg-panel px-4 flex items-center justify-between z-50">
@@ -64,5 +64,3 @@ export const Header = ({
     </header>
   );
 };
-
-import { cn } from '@/lib/utils';

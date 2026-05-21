@@ -1,5 +1,7 @@
 
 import { create } from 'zustand';
+import { parseProgram, Instruction, ParsedProgram } from '@/engine/parser';
+import { executeInstruction, ExecutionResult } from '@/engine/executor';
 
 export interface LogEntry {
   step: number;
@@ -22,42 +24,78 @@ interface CPUState {
   memory: (number | null)[];
   stack: number[];
   pc: number;
+  instructions: Instruction[];
+  labels: Record<string, number>;
   isRunning: boolean;
   isAnimating: boolean;
+  isPaused: boolean;
+  awaitingInput: { register: string } | null;
   executionLog: LogEntry[];
   currentAnimations: AnimationEvent[];
   activeBuildings: Record<string, 'source' | 'dest' | null>;
-  program: string[];
+  rawCode: string;
   speed: number;
 
   // Actions
   setProgram: (code: string) => void;
-  step: () => void;
+  step: () => Promise<void>;
+  togglePlay: () => void;
   reset: () => void;
   setSpeed: (s: number) => void;
+  submitInput: (val: number) => void;
   addAnimation: (anim: AnimationEvent) => void;
   removeAnimation: (id: string) => void;
 }
+
+const DEFAULT_CODE = `# Sum of two numbers
+LOADI R1 7
+LOADI R2 3
+ADD R3 R1 R2
+STORE R3 MEM[0]
+PUSH R1
+PUSH R2
+POP R4
+HLT`;
 
 export const useCPUStore = create<CPUState>((set, get) => ({
   registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 },
   memory: Array(16).fill(null),
   stack: [],
   pc: 0,
+  instructions: [],
+  labels: {},
   isRunning: false,
   isAnimating: false,
+  isPaused: true,
+  awaitingInput: null,
   executionLog: [],
   currentAnimations: [],
   activeBuildings: {},
-  program: ["MOV R1, 10", "MOV R2, 20", "ADD R3, R1, R2", "STORE R3, [0]", "HLT"],
+  rawCode: DEFAULT_CODE,
   speed: 1,
 
   setProgram: (code: string) => {
-    const lines = code.split('\n').map(l => l.trim()).filter(l => l !== '');
-    set({ program: lines, pc: 0, executionLog: [], registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 }, stack: [], memory: Array(16).fill(null) });
+    const { instructions, labels } = parseProgram(code);
+    set({ rawCode: code, instructions, labels, pc: 0, executionLog: [], registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 }, stack: [], memory: Array(16).fill(null), isRunning: false });
   },
 
   setSpeed: (s) => set({ speed: s }),
+
+  togglePlay: () => {
+    const { isPaused, isRunning } = get();
+    set({ isPaused: !isPaused, isRunning: true });
+  },
+
+  submitInput: (val) => {
+    const { awaitingInput, registers, pc, executionLog } = get();
+    if (!awaitingInput) return;
+    set({
+      registers: { ...registers, [awaitingInput.register]: val },
+      awaitingInput: null,
+      pc: pc + 1,
+      executionLog: [...executionLog, { step: pc + 1, instruction: 'READ', result: `Received input ${val} to ${awaitingInput.register}` }]
+    });
+  },
 
   addAnimation: (anim) => set(state => ({ 
     currentAnimations: [...state.currentAnimations, anim],
@@ -80,123 +118,73 @@ export const useCPUStore = create<CPUState>((set, get) => ({
     executionLog: [],
     currentAnimations: [],
     activeBuildings: {},
-    isAnimating: false
+    isAnimating: false,
+    isPaused: true,
+    isRunning: false,
+    awaitingInput: null
   }),
 
   step: async () => {
-    const { pc, program, registers, memory, stack, speed, addAnimation, removeAnimation } = get();
-    if (pc >= program.length) return;
+    const { pc, instructions, registers, memory, stack, labels, speed, addAnimation, removeAnimation, isAnimating, awaitingInput } = get();
+    if (isAnimating || awaitingInput || pc >= instructions.length || pc === -1) return;
 
-    const instr = program[pc];
-    const parts = instr.replace(',', '').split(/\s+/);
-    const op = parts[0].toUpperCase();
-    
-    set({ isAnimating: true });
-    const animId = Math.random().toString(36).substr(2, 9);
+    const instr = instructions[pc];
+    const result = executeInstruction(instr, { registers, memory, stack, pc, labels });
+
+    if (result.requiresInput) {
+      set({ awaitingInput: result.requiresInput });
+      return;
+    }
+
+    set({ isAnimating: true, activeBuildings: result.activeBuildings });
     const duration = 1000 / speed;
 
-    // Simulation logic and animation triggers
-    if (op === 'MOV') {
-      const dest = parts[1];
-      const src = parts[2];
-      const val = src.startsWith('R') ? registers[src] : parseInt(src);
+    // Execute animations sequentially or in parallel based on result.animations
+    for (const anim of result.animations) {
+      const animId = Math.random().toString(36).substr(2, 9);
+      if (anim.delay) await new Promise(r => setTimeout(r, anim.delay * duration));
       
-      // Animation from source to Register
       addAnimation({
         id: animId,
         type: 'move',
-        startPos: src.startsWith('R') ? getBuildingPos(src) : getBuildingPos('PC'),
-        endPos: getBuildingPos(dest),
-        color: '#378ADD',
-        label: val.toString()
+        startPos: getBuildingPos(anim.start),
+        endPos: getBuildingPos(anim.end),
+        color: anim.color,
+        label: anim.label
       });
 
-      set({ activeBuildings: { [src.startsWith('R') ? src : 'PC']: 'source', [dest]: 'dest' } });
-
-      setTimeout(() => {
-        set(state => ({
-          registers: { ...state.registers, [dest]: val },
-          pc: state.pc + 1,
-          executionLog: [...state.executionLog, { step: state.pc + 1, instruction: instr, result: `${dest} = ${val}` }],
-          activeBuildings: {},
-        }));
-        removeAnimation(animId);
-      }, duration);
-    } 
-    else if (op === 'ADD') {
-      const dest = parts[1];
-      const src1 = parts[2];
-      const src2 = parts[3];
-      const v1 = registers[src1];
-      const v2 = registers[src2];
-      const res = v1 + v2;
-
-      // Two cars to ALU
-      const id1 = animId + '1';
-      const id2 = animId + '2';
-      addAnimation({ id: id1, type: 'move', startPos: getBuildingPos(src1), endPos: getBuildingPos('ALU'), color: '#1D9E75', label: v1.toString() });
-      addAnimation({ id: id2, type: 'move', startPos: getBuildingPos(src2), endPos: getBuildingPos('ALU'), color: '#1D9E75', label: v2.toString() });
-      
-      set({ activeBuildings: { [src1]: 'source', [src2]: 'source', 'ALU': 'dest' } });
-
-      setTimeout(() => {
-        removeAnimation(id1);
-        removeAnimation(id2);
-        
-        // One car from ALU to Dest
-        const id3 = animId + '3';
-        addAnimation({ id: id3, type: 'move', startPos: getBuildingPos('ALU'), endPos: getBuildingPos(dest), color: '#1D9E75', label: res.toString() });
-        set({ activeBuildings: { 'ALU': 'source', [dest]: 'dest' } });
-
-        setTimeout(() => {
-          set(state => ({
-            registers: { ...state.registers, [dest]: res },
-            pc: state.pc + 1,
-            executionLog: [...state.executionLog, { step: state.pc + 1, instruction: instr, result: `${dest} = ${res}` }],
-            activeBuildings: {},
-          }));
-          removeAnimation(id3);
-        }, duration);
-      }, duration);
+      // We don't await the removal here so multiple can run, 
+      // but the for loop waits if there's a delay between cars
+      setTimeout(() => removeAnimation(animId), duration);
     }
-    else if (op === 'STORE') {
-      const src = parts[1];
-      const addr = parseInt(parts[2].replace('[', '').replace(']', ''));
-      const val = registers[src];
 
-      addAnimation({ id: animId, type: 'move', startPos: getBuildingPos(src), endPos: getBuildingPos('RAM'), color: '#EF9F27', label: val.toString() });
-      set({ activeBuildings: { [src]: 'source', 'RAM': 'dest' } });
+    // Wait for the last animation to finish before updating state
+    await new Promise(r => setTimeout(r, duration * (result.animations.length > 1 ? 2 : 1)));
 
-      setTimeout(() => {
-        set(state => {
-          const newMem = [...state.memory];
-          newMem[addr] = val;
-          return {
-            memory: newMem,
-            pc: state.pc + 1,
-            executionLog: [...state.executionLog, { step: state.pc + 1, instruction: instr, result: `MEM[${addr}] = ${val}` }],
-            activeBuildings: {},
-          };
-        });
-        removeAnimation(animId);
-      }, duration);
-    }
-    else if (op === 'HLT') {
-      set({ pc: program.length, isAnimating: false });
-    } else {
-      // Fallback for unimplemented instructions
-      set(state => ({ pc: state.pc + 1 }));
+    set(state => ({
+      registers: result.registers ?? state.registers,
+      memory: result.memory ?? state.memory,
+      stack: result.stack ?? state.stack,
+      pc: result.nextPC ?? state.pc,
+      executionLog: [...state.executionLog, { step: state.pc + 1, instruction: instr.raw, result: result.logMessage }],
+      activeBuildings: {},
+      isAnimating: false
+    }));
+
+    if (result.nextPC === -1) {
+      set({ isRunning: false, isPaused: true });
     }
   }
 }));
 
-// Helper to get coordinates
 function getBuildingPos(id: string) {
   if (id === 'PC') return { x: 400, y: 70 };
   if (id === 'R0') return { x: 84, y: 127 };
   if (id === 'R1') return { x: 84, y: 181 };
   if (id === 'R2') return { x: 84, y: 235 };
   if (id === 'R3') return { x: 84, y: 289 };
+  if (id === 'R4') return { x: 84, y: 343 };
+  if (id === 'R5') return { x: 84, y: 397 };
   if (id === 'ALU') return { x: 400, y: 330 };
   if (id === 'RAM') return { x: 700, y: 190 };
   if (id === 'STACK') return { x: 700, y: 480 };

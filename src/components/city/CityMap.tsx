@@ -1,10 +1,10 @@
-
 'use client';
 
 import React from 'react';
 import { BuildingBox } from './BuildingBox';
 import { DataCar } from './DataCar';
 import { useCPUStore } from '@/store/use-cpu-store';
+import { cn } from '@/lib/utils';
 import { 
   Home, 
   Factory, 

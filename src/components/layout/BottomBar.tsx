@@ -2,14 +2,14 @@
 'use client';
 
 import React from 'react';
-import { Play, StepForward, ChevronDown } from 'lucide-react';
+import { Play, Pause, StepForward, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useCPUStore } from '@/store/use-cpu-store';
 
 export const BottomBar = () => {
-  const { pc, program, step, speed, setSpeed, isAnimating } = useCPUStore();
-  const progress = (pc / program.length) * 100;
+  const { pc, instructions, step, speed, setSpeed, isAnimating, isPaused, togglePlay } = useCPUStore();
+  const progress = instructions.length > 0 ? (pc / instructions.length) * 100 : 0;
 
   return (
     <footer className="h-[52px] border-t border-border bg-panel px-4 flex items-center justify-between z-50 relative">
@@ -25,7 +25,7 @@ export const BottomBar = () => {
         <div className="flex flex-col items-center">
           <Button 
             onClick={step}
-            disabled={isAnimating || pc >= program.length}
+            disabled={isAnimating || !isPaused || pc >= instructions.length}
             className="bg-primary hover:bg-primary/90 text-white h-9 px-4 gap-2 arrow-slide-right group transition-transform active:scale-95"
           >
             Step
@@ -35,9 +35,13 @@ export const BottomBar = () => {
         </div>
         
         <div className="flex flex-col items-center">
-          <Button variant="outline" className="border-primary text-primary hover:bg-primary/5 h-9 px-4 gap-2 active:scale-95">
-            <Play className="w-4 h-4 fill-current" />
-            Play
+          <Button 
+            onClick={togglePlay}
+            variant="outline" 
+            className="border-primary text-primary hover:bg-primary/5 h-9 px-4 gap-2 active:scale-95"
+          >
+            {isPaused ? <Play className="w-4 h-4 fill-current" /> : <Pause className="w-4 h-4 fill-current" />}
+            {isPaused ? 'Play' : 'Pause'}
           </Button>
           <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Space</span>
         </div>
@@ -66,9 +70,9 @@ export const BottomBar = () => {
         </div>
         
         <div className="text-[13px] font-bold text-muted bg-background px-3 py-1 rounded-full border border-border flex items-center gap-2 shadow-sm">
-          <span className="text-primary">{pc.toString().padStart(2, '0')}</span>
+          <span className="text-primary">{pc === -1 ? instructions.length : pc.toString().padStart(2, '0')}</span>
           <span className="text-dim">/</span>
-          <span>{program.length.toString().padStart(2, '0')}</span>
+          <span>{instructions.length.toString().padStart(2, '0')}</span>
           <span className="text-[9px] text-dim font-bold uppercase tracking-widest ml-1">instr.</span>
         </div>
       </div>
