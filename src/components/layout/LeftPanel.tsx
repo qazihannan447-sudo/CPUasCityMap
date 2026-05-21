@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LogEntry {
   step: number;
@@ -20,27 +21,37 @@ export const LeftPanel = ({
   logs: LogEntry[],
   onAiGenerate: () => void
 }) => {
-  const examples = ["Sum", "Array", "Stack", "Loop", "User Input"];
+  const examples = ["Sum", "Array", "Stack", "Loop"];
+
+  const getLogBorderColor = (instruction: string) => {
+    const i = instruction.toUpperCase();
+    if (i.includes('LOAD')) return 'border-l-[secondary]';
+    if (i.includes('ADD') || i.includes('SUB')) return 'border-l-primary';
+    if (i.includes('PUSH') || i.includes('POP')) return 'border-l-stack';
+    if (i.includes('J')) return 'border-l-warning';
+    if (i.includes('STORE')) return 'border-l-orange-500';
+    return 'border-l-border';
+  };
 
   return (
     <aside className="w-[280px] h-[calc(100vh-48px-52px)] bg-panel border-r border-border flex flex-col">
       <div className="p-4 flex flex-col gap-4 overflow-hidden h-full">
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-[10px] font-medium uppercase tracking-widest text-dim">Program</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim">Blueprint</h2>
             <button 
               onClick={onAiGenerate}
-              className="text-[10px] flex items-center gap-1 text-primary hover:underline font-semibold"
+              className="text-[10px] flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold transition-colors"
             >
-              <Sparkles className="w-3 h-3" />
+              <Sparkles className="w-3.5 h-3.5" />
               AI ARCHITECT
             </button>
           </div>
-          <div className="relative rounded-lg overflow-hidden border border-[#2A2A2A] bg-[#1C1917]">
+          <div className="relative rounded-lg overflow-hidden border border-[#2A2A2A] bg-[#1C1917] shadow-lg">
             <textarea
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="w-full h-[200px] bg-transparent text-[#E8E3D4] font-code text-[12px] p-4 resize-none focus:outline-none leading-relaxed"
+              className="w-full h-[200px] bg-transparent text-[#E8E3D4] font-code text-[12px] p-4 resize-none focus:outline-none leading-relaxed selection:bg-primary/40"
               spellCheck={false}
             />
           </div>
@@ -48,7 +59,7 @@ export const LeftPanel = ({
             {examples.map((ex) => (
               <button
                 key={ex}
-                className="px-2.5 py-1 text-[11px] font-medium border border-border rounded-full hover:bg-background transition-colors text-muted"
+                className="px-2.5 py-1 text-[10px] font-bold border border-border rounded-md hover:bg-background hover:border-dim transition-all text-muted uppercase tracking-tighter"
               >
                 {ex}
               </button>
@@ -56,24 +67,35 @@ export const LeftPanel = ({
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <h2 className="text-[10px] font-medium uppercase tracking-widest text-dim mb-3">Execution Log</h2>
-          <ScrollArea className="flex-1 rounded-lg border border-border bg-background/30 overflow-auto">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim mb-3">Execution Log</h2>
+          
+          {/* Subtle fade-out gradient at the top */}
+          <div className="absolute top-[28px] left-0 right-0 h-8 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none opacity-60" />
+
+          <ScrollArea className="flex-1 rounded-lg border border-border bg-background/20 overflow-auto">
             {logs.length === 0 ? (
-              <div className="p-4 text-center text-dim italic text-[11px]">
-                No steps recorded yet.
+              <div className="p-8 text-center text-dim italic text-[11px] flex flex-col items-center gap-2">
+                <div className="w-10 h-[1px] bg-border" />
+                No signals captured
+                <div className="w-10 h-[1px] bg-border" />
               </div>
             ) : (
               <div className="flex flex-col">
                 {logs.map((log, i) => (
                   <div 
                     key={i} 
-                    className={`flex items-start gap-3 p-2 text-[12px] border-b border-border/50 ${i % 2 === 0 ? 'bg-panel/40' : 'bg-transparent'}`}
+                    className={cn(
+                      "flex items-start gap-4 p-3 text-[12px] border-b border-border/40 border-l-4 transition-colors hover:bg-background/50",
+                      getLogBorderColor(log.instruction)
+                    )}
                   >
-                    <span className="font-code text-primary min-w-[20px] pt-0.5">{log.step}</span>
+                    <span className="font-code text-dim font-bold text-[10px] pt-1">
+                      {log.step.toString().padStart(3, '0')}
+                    </span>
                     <div className="flex-1">
-                      <div className="font-medium text-foreground">{log.instruction}</div>
-                      <div className="text-[11px] text-muted">{log.result}</div>
+                      <div className="font-bold text-foreground font-code">{log.instruction}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 italic">{log.result}</div>
                     </div>
                   </div>
                 ))}
@@ -83,7 +105,7 @@ export const LeftPanel = ({
         </div>
 
         <div className="pt-4 border-t border-border">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-y-2 gap-x-4">
             {[
               { label: 'Register', color: 'bg-secondary' },
               { label: 'ALU', color: 'bg-alu' },
@@ -91,8 +113,8 @@ export const LeftPanel = ({
               { label: 'Stack', color: 'bg-stack' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
-                <span className="text-[10px] text-muted font-medium uppercase">{item.label}</span>
+                <div className={cn("w-2.5 h-2.5 rounded shadow-sm border border-black/5", item.color)} />
+                <span className="text-[9px] text-muted font-bold uppercase tracking-tight">{item.label}</span>
               </div>
             ))}
           </div>

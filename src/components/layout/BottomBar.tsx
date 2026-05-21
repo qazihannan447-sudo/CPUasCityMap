@@ -12,17 +12,34 @@ export const BottomBar = ({
   totalSteps: number, 
   programName: string 
 }) => {
+  const progress = (currentStep / totalSteps) * 100;
+
   return (
-    <footer className="h-[52px] border-t border-border bg-panel px-4 flex items-center justify-between z-50">
+    <footer className="h-[52px] border-t border-border bg-panel px-4 flex items-center justify-between z-50 relative">
+      {/* Execution Progress Bar */}
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-border/20">
+        <div 
+          className="h-full bg-primary transition-all duration-300 shadow-[0_0_4px_rgba(29,158,117,0.5)]" 
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
       <div className="flex items-center gap-4">
-        <Button className="bg-primary hover:bg-primary/90 text-white h-9 px-4 gap-2">
-          Step
-          <StepForward className="w-4 h-4" />
-        </Button>
-        <Button variant="outline" className="border-primary text-primary hover:bg-primary/5 h-9 px-4 gap-2">
-          <Play className="w-4 h-4 fill-current" />
-          Play
-        </Button>
+        <div className="flex flex-col items-center">
+          <Button className="bg-primary hover:bg-primary/90 text-white h-9 px-4 gap-2 arrow-slide-right group">
+            Step
+            <StepForward className="w-4 h-4 arrow-icon" />
+          </Button>
+          <span className="text-[9px] text-muted-foreground font-medium mt-0.5">→</span>
+        </div>
+        
+        <div className="flex flex-col items-center">
+          <Button variant="outline" className="border-primary text-primary hover:bg-primary/5 h-9 px-4 gap-2">
+            <Play className="w-4 h-4 fill-current" />
+            Play
+          </Button>
+          <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Space</span>
+        </div>
         
         <div className="h-8 w-px bg-border mx-2" />
         
@@ -35,17 +52,17 @@ export const BottomBar = ({
 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-muted">{programName}</span>
+          <span className="text-[12px] text-muted font-medium tracking-tight">{programName}</span>
           <Button variant="ghost" size="icon" className="h-6 w-6">
             <ChevronDown className="w-4 h-4 text-muted" />
           </Button>
         </div>
         
-        <div className="text-[13px] font-medium text-muted bg-background px-3 py-1 rounded-full border border-border">
-          <span className="text-primary">{currentStep}</span>
-          <span className="mx-1 text-dim">/</span>
-          <span>{totalSteps}</span>
-          <span className="ml-2 text-[11px] text-dim font-normal uppercase">instructions</span>
+        <div className="text-[13px] font-bold text-muted bg-background px-3 py-1 rounded-full border border-border flex items-center gap-2 shadow-sm">
+          <span className="text-primary">{currentStep.toString().padStart(2, '0')}</span>
+          <span className="text-dim">/</span>
+          <span>{totalSteps.toString().padStart(2, '0')}</span>
+          <span className="text-[9px] text-dim font-bold uppercase tracking-widest ml-1">instr.</span>
         </div>
       </div>
     </footer>
