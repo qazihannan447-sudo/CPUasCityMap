@@ -2,7 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CPU City',
+  title: 'CPU City — Computer Architecture Visualizer',
   description: 'Interactive Computer Architecture Visualizer',
 };
 

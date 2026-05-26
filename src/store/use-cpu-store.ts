@@ -7,6 +7,7 @@ export interface LogEntry {
   instruction: string;
   result: string;
   isError?: boolean;
+  isComplete?: boolean;
 }
 
 export interface AnimationEvent {
@@ -40,6 +41,7 @@ interface CPUState {
   executionLog: LogEntry[];
   currentAnimations: AnimationEvent[];
   activeBuildings: Record<string, 'source' | 'dest' | 'error' | null>;
+  lastWrittenMemAddr: number | null;
   rawCode: string;
   speed: number;
   theme: 'day' | 'night';
@@ -59,52 +61,65 @@ interface CPUState {
   setIntroPhase: (p: number) => void;
 }
 
-export const DEFAULT_CODE = `# Sum of two numbers
+export const DEFAULT_CODE = `# Sum two numbers
 LOADI R1 7
 LOADI R2 3
-ADD R3 R1 R2
-STORE R3 MEM[0]
-PUSH R1
-PUSH R2
-POP R4
-HLT`;
+ADD R1 R2 R3`;
 
 export const SAMPLES = {
-  Sum: `# Sum of two numbers
+  Sum: `# Sum two numbers
 LOADI R1 7
 LOADI R2 3
-ADD R3 R1 R2
-STORE R3 MEM[0]
-HLT`,
-  Array: `# Array & Memory
+ADD R1 R2 R3`,
+  Array: `# Array sum
 LOADI R1 10
 LOADI R2 20
 STORE R1 MEM[0]
 STORE R2 MEM[1]
 LOAD R3 MEM[0]
-ADD R4 R3 R2
-HLT`,
+LOAD R4 MEM[1]
+ADD R3 R4 R5`,
   Stack: `# Stack demo
 LOADI R1 5
 LOADI R2 8
 PUSH R1
 PUSH R2
 POP R3
-POP R4
-HLT`,
-  Loop: `# Iteration Loop
+POP R4`,
+  Loop: `# Count loop
 LOADI R1 0
 LOADI R2 1
 loop:
-ADD R1 R1 R2
-JUMPIF R1 < 5 loop
-HLT`,
-  UserInput: `# Interactive Math
+ADD R1 R2 R1
+JUMPIF R1 < 5 loop`,
+  UserInput: `# User input
 READ R1
 READ R2
-ADD R3 R1 R2
+ADD R1 R2 R3
+STORE R3 MEM[0]`,
+  RegisterSwapUsingStack: `# Register swap using stack
+# Shows: LOADI, PUSH, POP, stack as temp storage
+LOADI R1 42
+LOADI R2 99
+PUSH R1
+PUSH R2
+POP R1
+POP R2`,
+  ComputeAverageOfTwoNumbers: `# Average of two numbers
+# Shows: LOADI, ADD, memory, arithmetic chain
+LOADI R1 10
+LOADI R2 20
+ADD R1 R2 R3
+LOADI R4 2
 STORE R3 MEM[0]
-HLT`,
+STORE R4 MEM[1]`,
+  CountdownFrom5To0: `# Countdown from 5
+# Shows: LOADI, SUB, JUMPIF loop, full loop with termination
+LOADI R1 5
+LOADI R2 1
+loop:
+SUB R1 R2 R1
+JUMPIF R1 > 0 loop`,
 };
 
 export const useCPUStore = create<CPUState>((set, get) => ({
@@ -121,6 +136,7 @@ export const useCPUStore = create<CPUState>((set, get) => ({
   executionLog: [],
   currentAnimations: [],
   activeBuildings: {},
+  lastWrittenMemAddr: null,
   rawCode: DEFAULT_CODE,
   speed: 1,
   theme: 'day',
@@ -139,6 +155,7 @@ export const useCPUStore = create<CPUState>((set, get) => ({
       stack: [], 
       memory: Array(16).fill(null), 
       isRunning: false,
+      lastWrittenMemAddr: null,
       metrics: { instructions: 0, regWrites: 0, memWrites: 0, stackMax: 0 }
     });
   },
@@ -185,6 +202,7 @@ export const useCPUStore = create<CPUState>((set, get) => ({
     executionLog: [],
     currentAnimations: [],
     activeBuildings: {},
+    lastWrittenMemAddr: null,
     isAnimating: false,
     isPaused: true,
     isRunning: false,
@@ -237,28 +255,63 @@ export const useCPUStore = create<CPUState>((set, get) => ({
     const nextRegs = result.registers ?? registers;
     const nextMem = result.memory ?? memory;
     const nextStack = result.stack ?? stack;
+    const writtenMemAddr = result.memory ? getMemoryAddr(instr.args[1]) : null;
+    const nextPC = result.nextPC ?? pc;
+    const didCompleteNaturally = result.halted !== true && nextPC >= instructions.length;
     
-    set(state => ({
-      registers: nextRegs,
-      memory: nextMem,
-      stack: nextStack,
-      pc: result.nextPC ?? state.pc,
-      executionLog: [...state.executionLog, { step: state.pc + 1, instruction: instr.raw, result: result.logMessage }],
-      activeBuildings: {},
-      isAnimating: false,
-      metrics: {
-        instructions: state.metrics.instructions + 1,
-        regWrites: result.registers ? state.metrics.regWrites + 1 : state.metrics.regWrites,
-        memWrites: result.memory ? state.metrics.memWrites + 1 : state.metrics.memWrites,
-        stackMax: Math.max(state.metrics.stackMax, nextStack.length)
-      }
-    }));
+    set(state => {
+      const executedCount = state.metrics.instructions + 1;
+      const executionLog = [
+        ...state.executionLog,
+        { step: state.pc + 1, instruction: instr.raw, result: result.logMessage },
+      ];
 
-    if (result.nextPC === -1) {
+      if (didCompleteNaturally) {
+        executionLog.push({
+          step: nextPC,
+          instruction: 'COMPLETE',
+          result: `✓ Program complete — ${executedCount} instructions executed`,
+          isComplete: true,
+        });
+      }
+
+      return {
+        registers: nextRegs,
+        memory: nextMem,
+        stack: nextStack,
+        pc: nextPC,
+        executionLog,
+        activeBuildings: {},
+        ...(writtenMemAddr !== null ? { lastWrittenMemAddr: writtenMemAddr } : {}),
+        isAnimating: false,
+        metrics: {
+          instructions: executedCount,
+          regWrites: result.registers ? state.metrics.regWrites + 1 : state.metrics.regWrites,
+          memWrites: result.memory ? state.metrics.memWrites + 1 : state.metrics.memWrites,
+          stackMax: Math.max(state.metrics.stackMax, nextStack.length)
+        }
+      };
+    });
+
+    if (writtenMemAddr !== null) {
+      setTimeout(() => {
+        if (get().lastWrittenMemAddr === writtenMemAddr) {
+          set({ lastWrittenMemAddr: null });
+        }
+      }, 800);
+    }
+
+    if (result.halted === true || result.nextPC === -1) {
       set({ isRunning: false, isPaused: true });
     }
   }
 }));
+
+function getMemoryAddr(arg?: string) {
+  if (!arg) return null;
+  const addr = Number(arg.replace('MEM[', '').replace('[', '').replace(']', ''));
+  return Number.isFinite(addr) ? addr : null;
+}
 
 function getBuildingPos(id: string) {
   if (id === 'PC') return { x: 400, y: 70 };

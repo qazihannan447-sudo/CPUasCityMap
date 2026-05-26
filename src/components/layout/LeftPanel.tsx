@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Check, ChevronDown, FileCode } from 'lucide-react';
+import { Sparkles, Check, ChevronDown, FileCode, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCPUStore, SAMPLES } from '@/store/use-cpu-store';
 import {
@@ -18,7 +18,7 @@ export const LeftPanel = ({
 }: { 
   onAiGenerate: () => void 
 }) => {
-  const { instructions, pc, setProgram, rawCode, executionLog } = useCPUStore();
+  const { instructions, pc, setProgram, rawCode, executionLog, reset } = useCPUStore();
   const [codeValue, setCodeValue] = useState(rawCode);
 
   useEffect(() => {
@@ -29,6 +29,12 @@ export const LeftPanel = ({
     const val = e.target.value;
     setCodeValue(val);
     setProgram(val);
+  };
+
+  const handleNewProgram = () => {
+    reset();
+    setCodeValue('');
+    setProgram('');
   };
 
   const getLogBorderColor = (instruction: string) => {
@@ -65,13 +71,19 @@ export const LeftPanel = ({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <button 
-            onClick={onAiGenerate}
-            className="text-[10px] flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            AI ARCHITECT
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleNewProgram} className="h-6 px-2 text-[9px] gap-1">
+              <Plus className="w-3 h-3" />
+              New Program
+            </Button>
+            <button
+              onClick={onAiGenerate}
+              className="text-[10px] flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              AI ARCHITECT
+            </button>
+          </div>
         </div>
         <div className="relative rounded-lg overflow-hidden border border-[#2A2A2A] bg-[#1C1917] shadow-lg">
           {/* Editor background highlight */}
@@ -84,6 +96,7 @@ export const LeftPanel = ({
           <textarea
             value={codeValue}
             onChange={handleCodeChange}
+            placeholder={"# Write your assembly program here\n# Example:\nLOADI R1 5\nLOADI R2 3\nADD R1 R2 R3"}
             className="w-full h-[220px] bg-transparent text-[#E8E3D4] font-code text-[12px] p-4 resize-none focus:outline-none leading-[22px] selection:bg-primary/40 relative z-10"
             spellCheck={false}
           />
@@ -110,18 +123,19 @@ export const LeftPanel = ({
                   className={cn(
                     "flex items-start gap-4 p-3 text-[12px] border-b border-border/40 border-l-4 transition-colors hover:bg-background/50",
                     getLogBorderColor(log.instruction),
-                    log.isError && "bg-destructive/10 border-l-destructive"
+                    log.isError && "bg-destructive/10 border-l-destructive",
+                    log.isComplete && "bg-primary/5 border-l-primary"
                   )}
                 >
                   <span className="font-code text-dim font-bold text-[10px] pt-1">
                     {log.step.toString().padStart(3, '0')}
                   </span>
                   <div className="flex-1">
-                    <div className="font-bold text-foreground font-code flex items-center gap-2">
+                    <div className={cn("font-bold text-foreground font-code flex items-center gap-2", log.isComplete && "text-primary")}>
                       {log.instruction}
                       {!log.isError && <Check className="w-3 h-3 text-primary opacity-50" />}
                     </div>
-                    <div className={cn("text-[11px] mt-0.5 italic", log.isError ? "text-destructive font-bold" : "text-muted-foreground")}>
+                    <div className={cn("text-[11px] mt-0.5 italic", log.isComplete ? "text-primary font-bold" : log.isError ? "text-destructive font-bold" : "text-muted-foreground")}>
                       {log.result}
                     </div>
                   </div>

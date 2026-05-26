@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { LeftPanel } from '@/components/layout/LeftPanel';
 import { RightPanel } from '@/components/layout/RightPanel';
@@ -17,7 +17,8 @@ import { Button } from '@/components/ui/button';
 export default function CPUCity() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const { instructions, pc, setProgram, reset, isPaused, step, awaitingInput, submitInput, rawCode } = useCPUStore();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { instructions, pc, setProgram, reset, isPaused, step, awaitingInput, submitInput, rawCode, speed } = useCPUStore();
 
   // Initialize with default program
   useEffect(() => {
@@ -26,14 +27,37 @@ export default function CPUCity() {
 
   // Playback Loop
   useEffect(() => {
-    let interval: any;
-    if (!isPaused && pc < instructions.length && pc !== -1) {
-      interval = setInterval(() => {
-        step();
-      }, 1500);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-    return () => clearInterval(interval);
-  }, [isPaused, step, pc, instructions.length]);
+
+    if (!isPaused && pc < instructions.length && pc !== -1) {
+      const intervalMs = 2000 / speed;
+      intervalRef.current = setInterval(async () => {
+        await step();
+
+        const nextPc = useCPUStore.getState().pc;
+        const programLength = instructions.length;
+
+        if (nextPc === -1 || nextPc >= programLength) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          useCPUStore.setState({ isRunning: false, isPaused: true });
+          return;
+        }
+      }, intervalMs);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isPaused, step, pc, instructions.length, speed]);
 
   const handleAiArchitect = async () => {
     try {

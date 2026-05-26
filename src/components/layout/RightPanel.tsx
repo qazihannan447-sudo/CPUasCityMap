@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useCPUStore } from '@/store/use-cpu-store';
 
 export const RightPanel = () => {
-  const { registers, stack, memory, activeBuildings } = useCPUStore();
+  const { registers, stack, memory, activeBuildings, lastWrittenMemAddr } = useCPUStore();
   const [lastModified, setLastModified] = useState<Record<string, 'write' | 'read' | null>>({});
 
   useEffect(() => {
@@ -101,7 +101,10 @@ export const RightPanel = () => {
           {memory.slice(0, 16).map((val, i) => (
             <div 
               key={i} 
-              className="aspect-square flex flex-col items-center justify-center border border-border rounded-lg bg-warning/5 hover:bg-warning/20 transition-all duration-300 group cursor-default shadow-sm hover:shadow-md"
+              className={cn(
+                "aspect-square flex flex-col items-center justify-center border border-border rounded-lg bg-warning/5 hover:bg-warning/20 transition-all duration-300 group cursor-default shadow-sm hover:shadow-md",
+                lastWrittenMemAddr === i && "bg-amber-200 border-amber-400"
+              )}
             >
               <span className="text-[8px] text-dim leading-none mb-1 font-bold group-hover:text-warning">[{i}]</span>
               <span key={val} className="text-[12px] font-code font-bold text-warning/80 group-hover:text-warning number-flip-in">{val || '0'}</span>

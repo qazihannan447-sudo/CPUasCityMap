@@ -142,7 +142,7 @@ export const CityMap = () => {
 
       {/* Register Apartments */}
       <div className="absolute top-[100px] left-[40px] flex flex-col gap-1.5">
-        {['R0', 'R1', 'R2', 'R3'].map((reg, idx) => introPhase >= 2 + idx && (
+        {['R0', 'R1', 'R2', 'R3', 'R4', 'R5'].map((reg, idx) => introPhase >= Math.min(2 + idx, 6) && (
           <BuildingBox
             key={reg}
             id={reg}

@@ -41,12 +41,12 @@ export const BottomBar = () => {
             <Button 
               onClick={step}
               disabled={isAnimating || !isPaused || pc >= instructions.length}
-              className="bg-primary hover:bg-primary/90 text-white h-8 px-4 gap-2 arrow-slide-right group transition-transform active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white h-8 px-4 gap-2 arrow-slide-right group transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Step
               <StepForward className="w-3.5 h-3.5 arrow-icon" />
             </Button>
-            <span className="text-[9px] text-muted-foreground font-medium mt-0.5">→</span>
+            <span className="text-[9px] text-muted-foreground font-medium mt-0.5">{'->'}</span>
           </div>
           
           <div className="flex flex-col items-center">

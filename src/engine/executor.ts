@@ -10,6 +10,7 @@ export interface ExecutionResult {
   activeBuildings: Record<string, 'source' | 'dest' | 'error' | null>;
   requiresInput?: { register: string };
   isError?: boolean;
+  halted?: boolean;
 }
 
 export function executeInstruction(
@@ -139,19 +140,19 @@ export function executeInstruction(
     }
     case 'JUMPIF': {
       // Syntax: JUMPIF R1 < 5 label
-      const reg = args[0];
-      const op = args[1];
-      const val = parseInt(args[2]);
-      const label = args[3];
+      const [reg, operator, rawVal, label] = args;
+      const op = operator;
+      const compareVal = isNaN(Number(rawVal)) ? (registers[rawVal] ?? 0) : Number(rawVal);
       
-      const regVal = registers[reg] || 0;
+      const regVal = registers[reg] ?? 0;
       let condition = false;
-      if (op === '<') condition = regVal < val;
-      if (op === '>') condition = regVal > val;
-      if (op === '==') condition = regVal === val;
-      if (op === '!=') condition = regVal !== val;
-      if (op === '<=') condition = regVal <= val;
-      if (op === '>=') condition = regVal >= val;
+      if (operator === '>') condition = regVal > compareVal;
+      if (operator === '<') condition = regVal < compareVal;
+      if (operator === '>=') condition = regVal >= compareVal;
+      if (operator === '<=') condition = regVal <= compareVal;
+      if (operator === '==') condition = regVal === compareVal;
+      if (operator === '!=') condition = regVal !== compareVal;
+      const val = compareVal;
 
       if (condition) {
         result.nextPC = labels[label] ?? pc;
@@ -169,7 +170,8 @@ export function executeInstruction(
     }
     case 'HLT': {
       result.nextPC = -1;
-      result.logMessage = `HALTED`;
+      result.halted = true;
+      result.logMessage = `HLT: program halted`;
       break;
     }
     default:
