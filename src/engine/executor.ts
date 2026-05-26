@@ -86,9 +86,7 @@ export function executeInstruction(
     case 'ADD':
     case 'SUB':
     case 'MUL': {
-      const dest = args[0];
-      const s1 = args[1];
-      const s2 = args[2];
+      const [s1, s2, dest] = args;
       const v1 = getVal(s1);
       const v2 = getVal(s2);
       let res = 0;
