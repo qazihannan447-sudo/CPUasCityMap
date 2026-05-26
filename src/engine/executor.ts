@@ -1,14 +1,26 @@
 import { Instruction } from './parser';
 
+export interface AnimationSpec {
+  from: string;
+  to: string;
+  label: string;
+  color: string;
+  type: string;
+}
+
 export interface ExecutionResult {
+  type?: string;
   nextPC?: number;
   registers?: Record<string, number>;
   memory?: (number | null)[];
   stack?: number[];
+  log?: string;
   logMessage: string;
   animations: any[];
+  animationSpec?: AnimationSpec;
   activeBuildings: Record<string, 'source' | 'dest' | 'error' | null>;
   requiresInput?: { register: string };
+  error?: boolean;
   isError?: boolean;
   halted?: boolean;
 }
@@ -52,10 +64,15 @@ export function executeInstruction(
     }
     case 'LOAD': {
       const dest = args[0];
-      const addr = getAddr(args[1]);
-      if (addr >= memory.length) {
+      const parsedAddress = args[1]?.replace('MEM[', '').replace('[', '').replace(']', '') ?? '';
+      const addr = parseInt(parsedAddress);
+      if (isNaN(addr) || addr < 0 || addr >= memory.length) {
+        result.type = 'ERROR';
+        result.error = true;
         result.isError = true;
-        result.logMessage = `SEGFAULT: MEM[${addr}] out of bounds`;
+        result.nextPC = pc;
+        result.logMessage = `Memory error: address ${parsedAddress} is out of bounds (valid: 0–${memory.length - 1})`;
+        result.log = result.logMessage;
         result.activeBuildings = { 'RAM': 'error' };
         break;
       }
@@ -68,11 +85,16 @@ export function executeInstruction(
     }
     case 'STORE': {
       const src = args[0];
-      const addr = getAddr(args[1]);
+      const parsedAddress = args[1]?.replace('MEM[', '').replace('[', '').replace(']', '') ?? '';
+      const addr = parseInt(parsedAddress);
       const val = registers[src];
-      if (addr >= memory.length) {
+      if (isNaN(addr) || addr < 0 || addr >= memory.length) {
+        result.type = 'ERROR';
+        result.error = true;
         result.isError = true;
-        result.logMessage = `SEGFAULT: MEM[${addr}] out of bounds`;
+        result.nextPC = pc;
+        result.logMessage = `Memory error: address ${parsedAddress} is out of bounds (valid: 0–${memory.length - 1})`;
+        result.log = result.logMessage;
         result.activeBuildings = { 'RAM': 'error' };
         break;
       }
@@ -132,10 +154,22 @@ export function executeInstruction(
       break;
     }
     case 'JUMP': {
-      const label = args[0];
-      result.nextPC = labels[label] ?? pc;
-      result.logMessage = `JMP -> ${label}`;
+      const labelName = args[0];
+      const targetLine = labels[labelName];
+      if (targetLine === undefined || targetLine === null) {
+        result.type = 'ERROR';
+        result.error = true;
+        result.isError = true;
+        result.nextPC = pc;
+        result.logMessage = `JUMP error: label "${labelName}" not found in program`;
+        result.log = result.logMessage;
+        result.activeBuildings = { 'PC': 'error' };
+        break;
+      }
+      result.nextPC = targetLine;
+      result.logMessage = `JMP -> ${labelName}`;
       result.activeBuildings = { 'PC': 'dest' };
+      result.animationSpec = { from: 'pc', to: 'pc', label: labelName, color: '#888888', type: 'jump' };
       break;
     }
     case 'JUMPIF': {
@@ -155,17 +189,36 @@ export function executeInstruction(
       const val = compareVal;
 
       if (condition) {
-        result.nextPC = labels[label] ?? pc;
+        const targetLine = labels[label];
+        if (targetLine === undefined || targetLine === null) {
+          result.type = 'ERROR';
+          result.error = true;
+          result.isError = true;
+          result.nextPC = pc;
+          result.logMessage = `JUMP error: label "${label}" not found in program`;
+          result.log = result.logMessage;
+          result.activeBuildings = { 'PC': 'error' };
+          break;
+        }
+        result.nextPC = targetLine;
         result.logMessage = `IF ${regVal} ${op} ${val} (True) -> JMP ${label}`;
       } else {
         result.logMessage = `IF ${regVal} ${op} ${val} (False)`;
       }
       result.activeBuildings = { [reg]: 'source', 'PC': 'dest' };
+      result.animationSpec = {
+        from: reg.toLowerCase(),
+        to: condition ? 'pc' : reg.toLowerCase(),
+        label: condition ? 'JUMP' : 'skip',
+        color: condition ? '#EF9F27' : '#aaaaaa',
+        type: 'jumpif'
+      };
       break;
     }
     case 'READ': {
       result.requiresInput = { register: args[0] };
       result.logMessage = `WAITING INPUT -> ${args[0]}`;
+      result.animationSpec = { from: 'pc', to: args[0].toLowerCase(), label: '', color: '#534AB7', type: 'read' };
       break;
     }
     case 'HLT': {

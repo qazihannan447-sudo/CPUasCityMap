@@ -59,7 +59,7 @@ export const RightPanel = () => {
                 "font-code text-[16px] text-center font-bold number-flip-in",
                 activeBuildings[id] === 'dest' ? 'text-primary' : 'text-foreground'
               )}>
-                {value}
+                {value !== null && value !== undefined ? value : '—'}
               </span>
 
               <div className="flex justify-center mt-1">

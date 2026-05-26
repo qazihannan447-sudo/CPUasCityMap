@@ -13,8 +13,19 @@ export const Header = ({
   currentInstruction?: string,
   onReset: () => void
 }) => {
-  const { isAnimating, pc, instructions } = useCPUStore();
-  const isRunning = pc >= 0 && pc < instructions.length;
+  const { isRunning, isPaused, pc } = useCPUStore();
+  const status =
+    isRunning && !isPaused ? 'RUNNING' :
+    isRunning && isPaused  ? 'PAUSED'  :
+    pc === -1              ? 'HALTED'  :
+    pc > 0                 ? 'PAUSED'  :
+    'IDLE';
+
+  const statusDotClass =
+    status === 'RUNNING' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" :
+    status === 'PAUSED'  ? "bg-amber-400" :
+    status === 'HALTED'  ? "bg-red-500" :
+    "bg-dim";
 
   return (
     <header className="h-[48px] border-b border-border bg-panel px-4 flex items-center justify-between z-50">
@@ -34,14 +45,16 @@ export const Header = ({
             <div className="relative">
               <div className={cn(
                 "w-2 h-2 rounded-full transition-colors",
-                isAnimating ? "bg-primary animate-pulse shadow-[0_0_8px_rgba(29,158,117,0.6)]" : 
-                isRunning ? "bg-primary" : "bg-dim"
+                statusDotClass
               )} />
-              {isAnimating && <div className="absolute inset-0 w-2 h-2 rounded-full bg-primary animate-ping opacity-75" />}
+              {status === 'RUNNING' && <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-75" />}
             </div>
             <code className="text-[13px] font-code font-bold text-foreground">
               {currentInstruction}
             </code>
+            <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-dim">
+              {status}
+            </span>
           </div>
         )}
       </div>

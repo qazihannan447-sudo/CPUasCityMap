@@ -157,7 +157,7 @@ export const CityMap = () => {
           >
             <div className="flex items-center justify-center h-full">
               <span key={registers[reg]} className="text-[14px] font-code font-semibold text-[#185FA5] number-flip-in">
-                {registers[reg]}
+                {registers[reg] !== null && registers[reg] !== undefined ? registers[reg] : '—'}
               </span>
             </div>
           </BuildingBox>

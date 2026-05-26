@@ -120,6 +120,22 @@ LOADI R2 1
 loop:
 SUB R1 R2 R1
 JUMPIF R1 > 0 loop`,
+  "Full showcase": `# Full CA showcase
+# Enter 5 when prompted for READ
+READ R1
+LOADI R2 3
+ADD R1 R2 R3
+STORE R3 MEM[0]
+PUSH R1
+PUSH R2
+POP R4
+POP R5
+SUB R3 R2 R3
+JUMPIF R3 > 0 done
+LOADI R3 0
+done:
+LOAD R5 MEM[0]
+HLT`,
 };
 
 export const useCPUStore = create<CPUState>((set, get) => ({
@@ -172,13 +188,41 @@ export const useCPUStore = create<CPUState>((set, get) => ({
   submitInput: (val) => {
     const { awaitingInput, registers, pc, executionLog, metrics } = get();
     if (!awaitingInput) return;
-    set({
-      registers: { ...registers, [awaitingInput.register]: val },
+    const register = awaitingInput.register;
+    const animId = Math.random().toString(36).substr(2, 9);
+    const duration = 1000 / get().speed;
+
+    set(state => ({
+      registers: { ...registers, [register]: val },
       awaitingInput: null,
       pc: pc + 1,
-      executionLog: [...executionLog, { step: pc + 1, instruction: 'READ', result: `Input ${val} -> ${awaitingInput.register}` }],
+      executionLog: [...executionLog, { step: pc + 1, instruction: 'READ', result: `Input ${val} -> ${register}` }],
+      currentAnimations: [
+        ...state.currentAnimations,
+        {
+          id: animId,
+          type: 'move',
+          startPos: getBuildingPos('pc'),
+          endPos: getBuildingPos(register.toLowerCase()),
+          color: '#534AB7',
+          label: String(val)
+        }
+      ],
+      activeBuildings: { 'PC': 'source', [register]: 'dest' },
+      isAnimating: true,
       metrics: { ...metrics, regWrites: metrics.regWrites + 1 }
-    });
+    }));
+
+    setTimeout(() => {
+      set(state => {
+        const newAnims = state.currentAnimations.filter(a => a.id !== animId);
+        return {
+          currentAnimations: newAnims,
+          activeBuildings: newAnims.length > 0 ? state.activeBuildings : {},
+          isAnimating: newAnims.length > 0
+        };
+      });
+    }, duration);
   },
 
   addAnimation: (anim) => set(state => ({ 
@@ -226,14 +270,23 @@ export const useCPUStore = create<CPUState>((set, get) => ({
     const duration = 1000 / speed;
 
     // Trigger animations
-    if (result.isError) {
-      set(s => ({ executionLog: [...s.executionLog, { step: s.pc + 1, instruction: instr.raw, result: result.logMessage, isError: true }] }));
+    if (result.isError || result.error === true) {
+      set(s => ({
+        executionLog: [...s.executionLog, { step: s.pc + 1, instruction: instr.raw, result: result.logMessage, isError: true }],
+        isRunning: false,
+        isPaused: true,
+      }));
       await new Promise(r => setTimeout(r, duration));
       set({ isAnimating: false, activeBuildings: {} });
       return;
     }
 
-    for (const anim of result.animations) {
+    const animations = [
+      ...result.animations,
+      ...(result.animationSpec ? [animationSpecToAnimation(result.animationSpec)] : []),
+    ];
+
+    for (const anim of animations) {
       const animId = Math.random().toString(36).substr(2, 9);
       if (anim.delay) await new Promise(r => setTimeout(r, anim.delay * duration));
       
@@ -249,7 +302,7 @@ export const useCPUStore = create<CPUState>((set, get) => ({
       setTimeout(() => removeAnimation(animId), duration);
     }
 
-    await new Promise(r => setTimeout(r, duration * (result.animations.length > 1 ? 2 : 1)));
+    await new Promise(r => setTimeout(r, duration * (animations.length > 1 ? 2 : 1)));
 
     // Final State Update
     const nextRegs = result.registers ?? registers;
@@ -313,16 +366,27 @@ function getMemoryAddr(arg?: string) {
   return Number.isFinite(addr) ? addr : null;
 }
 
+function animationSpecToAnimation(spec: NonNullable<ExecutionResult['animationSpec']>) {
+  return {
+    type: spec.type,
+    start: spec.from,
+    end: spec.to,
+    color: spec.color,
+    label: spec.label
+  };
+}
+
 function getBuildingPos(id: string) {
-  if (id === 'PC') return { x: 400, y: 70 };
-  if (id === 'R0') return { x: 84, y: 127 };
-  if (id === 'R1') return { x: 84, y: 181 };
-  if (id === 'R2') return { x: 84, y: 235 };
-  if (id === 'R3') return { x: 84, y: 289 };
-  if (id === 'R4') return { x: 84, y: 343 };
-  if (id === 'R5') return { x: 84, y: 397 };
-  if (id === 'ALU') return { x: 400, y: 330 };
-  if (id === 'RAM') return { x: 700, y: 190 };
-  if (id === 'STACK') return { x: 700, y: 480 };
+  const normalized = id.toUpperCase();
+  if (normalized === 'PC') return { x: 400, y: 70 };
+  if (normalized === 'R0') return { x: 84, y: 127 };
+  if (normalized === 'R1') return { x: 84, y: 181 };
+  if (normalized === 'R2') return { x: 84, y: 235 };
+  if (normalized === 'R3') return { x: 84, y: 289 };
+  if (normalized === 'R4') return { x: 84, y: 343 };
+  if (normalized === 'R5') return { x: 84, y: 397 };
+  if (normalized === 'ALU') return { x: 400, y: 330 };
+  if (normalized === 'RAM' || normalized === 'MEM') return { x: 700, y: 190 };
+  if (normalized === 'STACK') return { x: 700, y: 480 };
   return { x: 400, y: 300 };
 }
