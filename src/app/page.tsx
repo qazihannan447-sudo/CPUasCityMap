@@ -1,29 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { LeftPanel } from '@/components/layout/LeftPanel';
 import { RightPanel } from '@/components/layout/RightPanel';
 import { CityMap } from '@/components/city/CityMap';
 import { BottomBar } from '@/components/layout/BottomBar';
 import { Toaster } from '@/components/ui/toaster';
-import { generateAssemblyCode } from '@/ai/flows/generate-assembly-code';
-import { toast } from '@/hooks/use-toast';
-import { useCPUStore } from '@/store/use-cpu-store';
+import { useCPUStore, SAMPLES } from '@/store/use-cpu-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 export default function CPUCity() {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { instructions, pc, setProgram, reset, isPaused, step, awaitingInput, submitInput, rawCode, speed } = useCPUStore();
-
-  // Initialize with default program
-  useEffect(() => {
-    setProgram(rawCode);
-  }, []);
+  const { instructions, pc, reset, isPaused, step, awaitingInput, submitInput, speed, undo } = useCPUStore();
 
   // Playback Loop
   useEffect(() => {
@@ -59,29 +51,21 @@ export default function CPUCity() {
     };
   }, [isPaused, step, pc, instructions.length, speed]);
 
-  const handleAiArchitect = async () => {
-    try {
-      setIsGenerating(true);
-      const res = await generateAssemblyCode({ 
-        description: "Draft a program to multiply R1 by 2 and store it in MEM[5]" 
-      });
-      if (res.assemblyCode) {
-        setProgram(res.assemblyCode);
-        toast({
-          title: "Blueprint Updated",
-          description: "AI Architect has drafted a new algorithm.",
-        });
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditorTarget = target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT';
+      if (isEditorTarget) return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undo();
       }
-    } catch (e) {
-      toast({
-        variant: "destructive",
-        title: "Architectural Failure",
-        description: "Failed to generate code snippet.",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [undo]);
 
   const currentInstruction = instructions[pc]?.raw || (pc === -1 ? "HALTED" : "IDLE");
 
@@ -90,12 +74,11 @@ export default function CPUCity() {
       <Header 
         currentInstruction={currentInstruction} 
         onReset={reset}
+        onUndo={undo}
       />
       
       <main className="flex-1 flex overflow-hidden">
-        <LeftPanel 
-          onAiGenerate={handleAiArchitect}
-        />
+        <LeftPanel onLoadShowcase={() => useCPUStore.getState().setProgram(SAMPLES.Showcase, { pushHistory: true })} />
         
         <CityMap />
         
@@ -135,18 +118,6 @@ export default function CPUCity() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {isGenerating && (
-        <div className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white border border-border p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <div className="text-center">
-              <h3 className="text-lg font-semibold">AI Architect at Work</h3>
-              <p className="text-sm text-dim">Drafting blueprints for your city's CPU...</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

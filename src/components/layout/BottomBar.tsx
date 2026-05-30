@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Play, Pause, StepForward, ChevronDown, Cpu } from 'lucide-react';
+import { Play, Pause, StepForward, Cpu, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useCPUStore } from '@/store/use-cpu-store';
 
 export const BottomBar = () => {
-  const { pc, instructions, step, speed, setSpeed, isAnimating, isPaused, togglePlay, metrics } = useCPUStore();
+  const { pc, instructions, step, speed, setSpeed, isAnimating, isPaused, togglePlay, metrics, undo, history, programErrors } = useCPUStore();
   const progress = instructions.length > 0 ? (pc / instructions.length) * 100 : 0;
 
   return (
@@ -38,9 +38,22 @@ export const BottomBar = () => {
       <div className="flex-1 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center">
+            <Button
+              onClick={undo}
+              disabled={history.length === 0 || isAnimating}
+              variant="outline"
+              className="border-primary/20 text-primary hover:bg-primary/5 h-8 px-4 gap-2 active:scale-95 disabled:opacity-50"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              Undo
+            </Button>
+            <span className="text-[9px] text-muted-foreground font-medium mt-0.5">Ctrl+Z</span>
+          </div>
+
+          <div className="flex flex-col items-center">
             <Button 
               onClick={step}
-              disabled={isAnimating || !isPaused || pc >= instructions.length}
+              disabled={isAnimating || !isPaused || pc >= instructions.length || programErrors.length > 0}
               className="bg-primary hover:bg-primary/90 text-white h-8 px-4 gap-2 arrow-slide-right group transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Step
@@ -52,8 +65,9 @@ export const BottomBar = () => {
           <div className="flex flex-col items-center">
             <Button 
               onClick={togglePlay}
+              disabled={programErrors.length > 0 || instructions.length === 0}
               variant="outline" 
-              className="border-primary text-primary hover:bg-primary/5 h-8 px-4 gap-2 active:scale-95"
+              className="border-primary text-primary hover:bg-primary/5 h-8 px-4 gap-2 active:scale-95 disabled:opacity-50"
             >
               {isPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
               {isPaused ? 'Play' : 'Pause'}
@@ -77,6 +91,11 @@ export const BottomBar = () => {
         </div>
 
         <div className="flex items-center gap-6">
+          {programErrors.length > 0 && (
+            <div className="text-[10px] font-bold text-destructive bg-destructive/5 px-3 py-1 rounded-full border border-destructive/20">
+              Fix {programErrors.length} editor issue(s)
+            </div>
+          )}
           <div className="text-[12px] font-bold text-muted bg-background px-3 py-1 rounded-full border border-border flex items-center gap-2 shadow-sm">
             <span className="text-primary">{pc === -1 ? instructions.length : pc.toString().padStart(2, '0')}</span>
             <span className="text-dim">/</span>

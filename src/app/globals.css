@@ -145,11 +145,29 @@
     animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
   }
 
+  .memory-error-flash {
+    animation: memory-flash 0.8s ease-in-out 2;
+  }
+
+  .stack-error-flash {
+    animation: stack-flash 0.8s ease-in-out 2;
+  }
+
   @keyframes shake {
     10%, 90% { transform: translate3d(-1px, 0, 0); }
     20%, 80% { transform: translate3d(2px, 0, 0); }
     30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
     40%, 60% { transform: translate3d(4px, 0, 0); }
+  }
+
+  @keyframes memory-flash {
+    0%, 100% { box-shadow: 0 0 0 rgba(239, 159, 39, 0); background-color: rgba(251, 191, 36, 0.12); }
+    50% { box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); background-color: rgba(251, 191, 36, 0.28); }
+  }
+
+  @keyframes stack-flash {
+    0%, 100% { box-shadow: 0 0 0 rgba(153, 53, 86, 0); }
+    50% { box-shadow: 0 0 18px rgba(153, 53, 86, 0.45); }
   }
 
   /* Window glow for night mode */

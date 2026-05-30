@@ -1,0 +1,101 @@
+<svg width="860" height="680" viewBox="0 0 860 680" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="860" y2="680" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FCF8F1"/>
+      <stop offset="1" stop-color="#F4E9D5"/>
+    </linearGradient>
+    <linearGradient id="park" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#DCEABD"/>
+      <stop offset="1" stop-color="#B8D694"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#BDE6F7"/>
+      <stop offset="1" stop-color="#7DC6DD"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#B89C70" flood-opacity="0.12"/>
+    </filter>
+    <pattern id="plazaTiles" width="18" height="18" patternUnits="userSpaceOnUse">
+      <path d="M0 0H18V18H0Z" fill="#F6E9CF"/>
+      <path d="M18 0H0V18" stroke="#E4D3B4" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="860" height="680" fill="url(#bg)"/>
+
+  <g opacity="0.55">
+    <path d="M0 88H860" stroke="#E9DAC0"/>
+    <path d="M0 192H860" stroke="#E9DAC0"/>
+    <path d="M0 296H860" stroke="#E9DAC0"/>
+    <path d="M0 400H860" stroke="#E9DAC0"/>
+    <path d="M0 504H860" stroke="#E9DAC0"/>
+    <path d="M0 608H860" stroke="#E9DAC0"/>
+    <path d="M104 0V680" stroke="#E9DAC0"/>
+    <path d="M208 0V680" stroke="#E9DAC0"/>
+    <path d="M312 0V680" stroke="#E9DAC0"/>
+    <path d="M416 0V680" stroke="#E9DAC0"/>
+    <path d="M520 0V680" stroke="#E9DAC0"/>
+    <path d="M624 0V680" stroke="#E9DAC0"/>
+    <path d="M728 0V680" stroke="#E9DAC0"/>
+  </g>
+
+  <g filter="url(#softShadow)" opacity="0.78">
+    <rect x="32" y="26" width="162" height="116" rx="28" fill="#F7EEDB"/>
+    <rect x="254" y="24" width="350" height="128" rx="36" fill="#FAF0DE"/>
+    <rect x="654" y="30" width="174" height="114" rx="28" fill="#F7EAD2"/>
+
+    <rect x="22" y="344" width="158" height="122" rx="36" fill="url(#park)"/>
+    <rect x="248" y="340" width="356" height="132" rx="40" fill="#F8EBCF"/>
+    <rect x="680" y="334" width="158" height="126" rx="34" fill="#F5EACE"/>
+
+    <rect x="36" y="544" width="176" height="104" rx="30" fill="#F8EFD8"/>
+    <rect x="302" y="538" width="252" height="108" rx="30" fill="#F6EDDA"/>
+    <rect x="638" y="538" width="182" height="108" rx="30" fill="#F9EFD8"/>
+  </g>
+
+  <g opacity="0.88">
+    <rect x="74" y="382" width="56" height="56" rx="28" fill="url(#water)"/>
+    <circle cx="102" cy="410" r="20" fill="#D9F0FA" opacity="0.55"/>
+    <circle cx="102" cy="410" r="10" fill="none" stroke="#8CCDE0" opacity="0.7"/>
+
+    <rect x="716" y="352" width="84" height="90" rx="30" fill="url(#water)"/>
+    <path d="M756 360C726 377 714 408 732 430C748 449 770 446 792 412C805 392 793 364 756 360Z" fill="#A4DBEC"/>
+
+    <circle cx="430" cy="406" r="62" fill="url(#plazaTiles)"/>
+    <circle cx="430" cy="406" r="22" fill="#9FD5E5"/>
+    <circle cx="430" cy="406" r="12" fill="#DDF4FB"/>
+  </g>
+
+  <g opacity="0.72">
+    <rect x="84" y="64" width="60" height="18" rx="9" fill="#E0D4BD"/>
+    <rect x="84" y="88" width="76" height="18" rx="9" fill="#E6D9C1"/>
+    <rect x="682" y="70" width="90" height="16" rx="8" fill="#E7D9C0"/>
+    <rect x="696" y="95" width="70" height="16" rx="8" fill="#E4D2B7"/>
+
+    <rect x="328" y="562" width="80" height="18" rx="9" fill="#E1D5BE"/>
+    <rect x="430" y="562" width="90" height="18" rx="9" fill="#E8DCC5"/>
+    <rect x="666" y="560" width="120" height="18" rx="9" fill="#E8DCC2"/>
+  </g>
+
+  <g opacity="0.84">
+    <circle cx="50" cy="168" r="10" fill="#85B058"/>
+    <circle cx="72" cy="186" r="8" fill="#90B965"/>
+    <circle cx="132" cy="174" r="10" fill="#7DAA54"/>
+    <circle cx="156" cy="154" r="8" fill="#A4C46B"/>
+    <circle cx="716" cy="178" r="10" fill="#84A855"/>
+    <circle cx="748" cy="164" r="8" fill="#8BB560"/>
+    <circle cx="792" cy="172" r="10" fill="#9FC66C"/>
+    <circle cx="54" cy="588" r="12" fill="#89B65B"/>
+    <circle cx="94" cy="618" r="9" fill="#78A44F"/>
+    <circle cx="688" cy="612" r="12" fill="#82B45B"/>
+    <circle cx="774" cy="594" r="10" fill="#95BE69"/>
+    <circle cx="352" cy="376" r="11" fill="#8BB95C"/>
+    <circle cx="512" cy="386" r="11" fill="#93BD64"/>
+    <circle cx="460" cy="448" r="10" fill="#85AF58"/>
+  </g>
+
+  <g opacity="0.24">
+    <path d="M14 32C86 62 146 57 220 36C300 13 384 13 462 42C537 70 629 76 720 40C780 16 816 14 846 22" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/>
+    <path d="M18 654C118 632 192 632 286 652C360 668 444 670 546 642C650 614 744 620 838 648" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

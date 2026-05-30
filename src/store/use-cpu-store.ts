@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { parseProgram, Instruction, ParsedProgram } from '@/engine/parser';
+import { parseProgram, Instruction, ProgramDiagnostic } from '@/engine/parser';
 import { executeInstruction, ExecutionResult } from '@/engine/executor';
+import { getBuildingCenter } from '@/config/buildings';
 
 export interface LogEntry {
   step: number;
@@ -27,6 +28,27 @@ interface Metrics {
   stackMax: number;
 }
 
+interface HistorySnapshot {
+  registers: Record<string, number>;
+  memory: (number | null)[];
+  stack: number[];
+  pc: number;
+  instructions: Instruction[];
+  labels: Record<string, number>;
+  executionLog: LogEntry[];
+  lastWrittenMemAddr: number | null;
+  lastMemoryAccess: { addr: number; kind: 'read' | 'write' } | null;
+  rawCode: string;
+  metrics: Metrics;
+  awaitingInput: { register: string } | null;
+  programErrors: ProgramDiagnostic[];
+  lastErrorLine: number | null;
+}
+
+interface SetProgramOptions {
+  pushHistory?: boolean;
+}
+
 interface CPUState {
   registers: Record<string, number>;
   memory: (number | null)[];
@@ -42,36 +64,65 @@ interface CPUState {
   currentAnimations: AnimationEvent[];
   activeBuildings: Record<string, 'source' | 'dest' | 'error' | null>;
   lastWrittenMemAddr: number | null;
+  lastMemoryAccess: { addr: number; kind: 'read' | 'write' } | null;
   rawCode: string;
   speed: number;
   theme: 'day' | 'night';
   metrics: Metrics;
-  introPhase: number; // 0 to 6 for splash
+  introPhase: number;
+  programErrors: ProgramDiagnostic[];
+  lastErrorLine: number | null;
+  errorFlashTarget: 'RAM' | 'STACK' | null;
+  history: HistorySnapshot[];
 
-  // Actions
-  setProgram: (code: string) => void;
+  setProgram: (code: string, options?: SetProgramOptions) => void;
   step: () => Promise<void>;
   togglePlay: () => void;
-  reset: () => void;
+  reset: (pushHistory?: boolean) => void;
+  undo: () => void;
   setSpeed: (s: number) => void;
   submitInput: (val: number) => void;
   addAnimation: (anim: AnimationEvent) => void;
   removeAnimation: (id: string) => void;
   toggleTheme: () => void;
   setIntroPhase: (p: number) => void;
+  clearErrorFlash: () => void;
 }
 
-export const DEFAULT_CODE = `# Sum two numbers
-LOADI R1 7
-LOADI R2 3
-ADD R1 R2 R3`;
+const EMPTY_METRICS: Metrics = {
+  instructions: 0,
+  regWrites: 0,
+  memWrites: 0,
+  stackMax: 0,
+};
+
+const EMPTY_REGISTERS = {
+  R0: 0,
+  R1: 0,
+  R2: 0,
+  R3: 0,
+  R4: 0,
+  R5: 0,
+};
+
+export const DEFAULT_CODE = `# CPU City tour
+LOADI R1 8
+LOADI R2 4
+STORE R1 MEM[0]
+STORE R2 MEM[1]
+LOAD R3 MEM[0]
+PUSH R3
+POP R4
+ADD R4 R2 R5`;
 
 export const SAMPLES = {
-  Sum: `# Sum two numbers
+  'Arithmetic District': `# LOADI + ADD + SUB + MUL
 LOADI R1 7
 LOADI R2 3
-ADD R1 R2 R3`,
-  Array: `# Array sum
+ADD R1 R2 R3
+SUB R3 R2 R4
+MUL R4 R2 R5`,
+  'Memory Warehouse': `# STORE + LOAD
 LOADI R1 10
 LOADI R2 20
 STORE R1 MEM[0]
@@ -79,49 +130,29 @@ STORE R2 MEM[1]
 LOAD R3 MEM[0]
 LOAD R4 MEM[1]
 ADD R3 R4 R5`,
-  Stack: `# Stack demo
+  'Stack Garage': `# PUSH + POP
 LOADI R1 5
 LOADI R2 8
 PUSH R1
 PUSH R2
 POP R3
 POP R4`,
-  Loop: `# Count loop
+  'Loop Junction': `# JUMP + JUMPIF
 LOADI R1 0
 LOADI R2 1
+JUMP loop
+skip:
+LOADI R5 99
 loop:
 ADD R1 R2 R1
 JUMPIF R1 < 5 loop`,
-  UserInput: `# User input
+  'Input Signal': `# READ
 READ R1
 READ R2
 ADD R1 R2 R3
-STORE R3 MEM[0]`,
-  RegisterSwapUsingStack: `# Register swap using stack
-# Shows: LOADI, PUSH, POP, stack as temp storage
-LOADI R1 42
-LOADI R2 99
-PUSH R1
-PUSH R2
-POP R1
-POP R2`,
-  ComputeAverageOfTwoNumbers: `# Average of two numbers
-# Shows: LOADI, ADD, memory, arithmetic chain
-LOADI R1 10
-LOADI R2 20
-ADD R1 R2 R3
-LOADI R4 2
 STORE R3 MEM[0]
-STORE R4 MEM[1]`,
-  CountdownFrom5To0: `# Countdown from 5
-# Shows: LOADI, SUB, JUMPIF loop, full loop with termination
-LOADI R1 5
-LOADI R2 1
-loop:
-SUB R1 R2 R1
-JUMPIF R1 > 0 loop`,
-  "Full showcase": `# Full CA showcase
-# Enter 5 when prompted for READ
+HLT`,
+  Showcase: `# Full CPU City showcase
 READ R1
 LOADI R2 3
 ADD R1 R2 R3
@@ -136,15 +167,17 @@ LOADI R3 0
 done:
 LOAD R5 MEM[0]
 HLT`,
-};
+} as const;
+
+const initialProgram = parseProgram(DEFAULT_CODE);
 
 export const useCPUStore = create<CPUState>((set, get) => ({
-  registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 },
+  registers: cloneRegisters(EMPTY_REGISTERS),
   memory: Array(16).fill(null),
   stack: [],
   pc: 0,
-  instructions: [],
-  labels: {},
+  instructions: initialProgram.instructions,
+  labels: initialProgram.labels,
   isRunning: false,
   isAnimating: false,
   isPaused: true,
@@ -153,131 +186,225 @@ export const useCPUStore = create<CPUState>((set, get) => ({
   currentAnimations: [],
   activeBuildings: {},
   lastWrittenMemAddr: null,
+  lastMemoryAccess: null,
   rawCode: DEFAULT_CODE,
   speed: 1,
   theme: 'day',
-  metrics: { instructions: 0, regWrites: 0, memWrites: 0, stackMax: 0 },
+  metrics: { ...EMPTY_METRICS },
   introPhase: 0,
+  programErrors: initialProgram.errors,
+  lastErrorLine: initialProgram.errors[0]?.line ?? null,
+  errorFlashTarget: null,
+  history: [],
 
-  setProgram: (code: string) => {
-    const { instructions, labels } = parseProgram(code);
-    set({ 
-      rawCode: code, 
-      instructions, 
-      labels, 
-      pc: 0, 
-      executionLog: [], 
-      registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 }, 
-      stack: [], 
-      memory: Array(16).fill(null), 
-      isRunning: false,
+  setProgram: (code, options = {}) => {
+    const parsed = parseProgram(code);
+    set((state) => ({
+      ...(options.pushHistory ? { history: appendHistory(state) } : {}),
+      rawCode: code,
+      instructions: parsed.instructions,
+      labels: parsed.labels,
+      programErrors: parsed.errors,
+      lastErrorLine: parsed.errors[0]?.line ?? null,
+      registers: cloneRegisters(EMPTY_REGISTERS),
+      memory: Array(16).fill(null),
+      stack: [],
+      pc: 0,
+      executionLog: [],
+      currentAnimations: [],
+      activeBuildings: {},
       lastWrittenMemAddr: null,
-      metrics: { instructions: 0, regWrites: 0, memWrites: 0, stackMax: 0 }
-    });
+      lastMemoryAccess: null,
+      isAnimating: false,
+      isPaused: true,
+      isRunning: false,
+      awaitingInput: null,
+      errorFlashTarget: null,
+      metrics: { ...EMPTY_METRICS },
+    }));
   },
 
-  setSpeed: (s) => set({ speed: s }),
-  toggleTheme: () => set(s => ({ theme: s.theme === 'day' ? 'night' : 'day' })),
-  setIntroPhase: (p) => set({ introPhase: p }),
+  setSpeed: (speed) => set({ speed }),
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'day' ? 'night' : 'day' })),
+  setIntroPhase: (introPhase) => set({ introPhase }),
+  clearErrorFlash: () => set({ errorFlashTarget: null }),
 
   togglePlay: () => {
-    const { isPaused } = get();
+    const { isPaused, awaitingInput, programErrors, isAnimating, instructions, pc } = get();
+    if (awaitingInput || programErrors.length > 0 || isAnimating || instructions.length === 0 || pc === -1) {
+      return;
+    }
     set({ isPaused: !isPaused, isRunning: true });
   },
 
-  submitInput: (val) => {
-    const { awaitingInput, registers, pc, executionLog, metrics } = get();
+  submitInput: (value) => {
+    const { awaitingInput, registers, pc, executionLog, metrics, speed } = get();
     if (!awaitingInput) return;
-    const register = awaitingInput.register;
-    const animId = Math.random().toString(36).substr(2, 9);
-    const duration = 1000 / get().speed;
 
-    set(state => ({
-      registers: { ...registers, [register]: val },
+    const register = awaitingInput.register;
+    const animationId = crypto.randomUUID();
+    const duration = 1000 / speed;
+
+    set((state) => ({
+      history: appendHistory(state),
+      registers: { ...registers, [register]: value },
       awaitingInput: null,
       pc: pc + 1,
-      executionLog: [...executionLog, { step: pc + 1, instruction: 'READ', result: `Input ${val} -> ${register}` }],
+      executionLog: [
+        ...executionLog,
+        { step: pc + 1, instruction: `READ ${register}`, result: `Input ${value} -> ${register}` },
+      ],
       currentAnimations: [
         ...state.currentAnimations,
         {
-          id: animId,
+          id: animationId,
           type: 'move',
-          startPos: getBuildingPos('pc'),
-          endPos: getBuildingPos(register.toLowerCase()),
+          startPos: getBuildingCenter('PC'),
+          endPos: getBuildingCenter(register),
           color: '#534AB7',
-          label: String(val)
-        }
+          label: String(value),
+        },
       ],
-      activeBuildings: { 'PC': 'source', [register]: 'dest' },
+      activeBuildings: { PC: 'source', [register]: 'dest' },
       isAnimating: true,
-      metrics: { ...metrics, regWrites: metrics.regWrites + 1 }
+      errorFlashTarget: null,
+      lastErrorLine: null,
+      metrics: { ...metrics, regWrites: metrics.regWrites + 1 },
     }));
 
-    setTimeout(() => {
-      set(state => {
-        const newAnims = state.currentAnimations.filter(a => a.id !== animId);
+    window.setTimeout(() => {
+      set((state) => {
+        const animations = state.currentAnimations.filter((animation) => animation.id !== animationId);
         return {
-          currentAnimations: newAnims,
-          activeBuildings: newAnims.length > 0 ? state.activeBuildings : {},
-          isAnimating: newAnims.length > 0
+          currentAnimations: animations,
+          activeBuildings: animations.length > 0 ? state.activeBuildings : {},
+          isAnimating: animations.length > 0,
         };
       });
     }, duration);
   },
 
-  addAnimation: (anim) => set(state => ({ 
-    currentAnimations: [...state.currentAnimations, anim],
-    isAnimating: true 
-  })),
+  addAnimation: (animation) =>
+    set((state) => ({
+      currentAnimations: [...state.currentAnimations, animation],
+      isAnimating: true,
+    })),
 
-  removeAnimation: (id) => set(state => {
-    const newAnims = state.currentAnimations.filter(a => a.id !== id);
-    return { 
-      currentAnimations: newAnims,
-      isAnimating: newAnims.length > 0
-    };
-  }),
+  removeAnimation: (id) =>
+    set((state) => {
+      const currentAnimations = state.currentAnimations.filter((animation) => animation.id !== id);
+      return {
+        currentAnimations,
+        isAnimating: currentAnimations.length > 0,
+      };
+    }),
 
-  reset: () => set({
-    registers: { R0: 0, R1: 0, R2: 0, R3: 0, R4: 0, R5: 0 },
-    memory: Array(16).fill(null),
-    stack: [],
-    pc: 0,
-    executionLog: [],
-    currentAnimations: [],
-    activeBuildings: {},
-    lastWrittenMemAddr: null,
-    isAnimating: false,
-    isPaused: true,
-    isRunning: false,
-    awaitingInput: null,
-    metrics: { instructions: 0, regWrites: 0, memWrites: 0, stackMax: 0 }
-  }),
+  reset: (pushHistory = true) =>
+    set((state) => ({
+      ...(pushHistory ? { history: appendHistory(state) } : {}),
+      registers: cloneRegisters(EMPTY_REGISTERS),
+      memory: Array(16).fill(null),
+      stack: [],
+      pc: 0,
+      executionLog: [],
+      currentAnimations: [],
+      activeBuildings: {},
+      lastWrittenMemAddr: null,
+      lastMemoryAccess: null,
+      isAnimating: false,
+      isPaused: true,
+      isRunning: false,
+      awaitingInput: null,
+      errorFlashTarget: null,
+      lastErrorLine: state.programErrors[0]?.line ?? null,
+      metrics: { ...EMPTY_METRICS },
+    })),
+
+  undo: () =>
+    set((state) => {
+      if (state.history.length === 0) {
+        return {};
+      }
+
+      const snapshot = state.history[state.history.length - 1];
+      return {
+        ...restoreSnapshot(snapshot),
+        history: state.history.slice(0, -1),
+      };
+    }),
 
   step: async () => {
-    const { pc, instructions, registers, memory, stack, labels, speed, addAnimation, removeAnimation, isAnimating, awaitingInput, metrics } = get();
-    if (isAnimating || awaitingInput || pc >= instructions.length || pc === -1) return;
+    const state = get();
+    const {
+      pc,
+      instructions,
+      registers,
+      memory,
+      stack,
+      labels,
+      speed,
+      addAnimation,
+      removeAnimation,
+      isAnimating,
+      awaitingInput,
+      metrics,
+      programErrors,
+    } = state;
 
-    const instr = instructions[pc];
-    const result = executeInstruction(instr, { registers, memory, stack, pc, labels });
-
-    if (result.requiresInput) {
-      set({ awaitingInput: result.requiresInput });
+    if (isAnimating || awaitingInput || programErrors.length > 0 || pc >= instructions.length || pc === -1) {
       return;
     }
 
-    set({ isAnimating: true, activeBuildings: result.activeBuildings });
+    const instruction = instructions[pc];
+    const result = executeInstruction(instruction, { registers, memory, stack, pc, labels });
+    const history = appendHistory(state);
+
+    if (result.requiresInput) {
+      set({
+        history,
+        awaitingInput: result.requiresInput,
+        activeBuildings: { PC: 'source', [result.requiresInput.register]: 'dest' },
+        lastErrorLine: null,
+        errorFlashTarget: null,
+      });
+      return;
+    }
+
+    set({
+      history,
+      isAnimating: true,
+      activeBuildings: result.activeBuildings,
+      errorFlashTarget: result.errorTarget === 'RAM' || result.errorTarget === 'STACK' ? result.errorTarget : null,
+    });
+
     const duration = 1000 / speed;
 
-    // Trigger animations
     if (result.isError || result.error === true) {
-      set(s => ({
-        executionLog: [...s.executionLog, { step: s.pc + 1, instruction: instr.raw, result: result.logMessage, isError: true }],
+      set((current) => ({
+        executionLog: [
+          ...current.executionLog,
+          {
+            step: current.pc + 1,
+            instruction: instruction.raw,
+            result: result.logMessage,
+            isError: true,
+          },
+        ],
         isRunning: false,
         isPaused: true,
+        lastErrorLine: instruction.line,
       }));
-      await new Promise(r => setTimeout(r, duration));
-      set({ isAnimating: false, activeBuildings: {} });
+
+      await wait(duration);
+
+      set({
+        isAnimating: false,
+        activeBuildings: {},
+      });
+
+      if (result.errorTarget === 'RAM' || result.errorTarget === 'STACK') {
+        window.setTimeout(() => get().clearErrorFlash(), 900);
+      }
       return;
     }
 
@@ -286,107 +413,185 @@ export const useCPUStore = create<CPUState>((set, get) => ({
       ...(result.animationSpec ? [animationSpecToAnimation(result.animationSpec)] : []),
     ];
 
-    for (const anim of animations) {
-      const animId = Math.random().toString(36).substr(2, 9);
-      if (anim.delay) await new Promise(r => setTimeout(r, anim.delay * duration));
-      
+    for (const animation of animations) {
+      const animationId = crypto.randomUUID();
+      if (animation.delay) {
+        await wait(animation.delay * duration);
+      }
+
       addAnimation({
-        id: animId,
+        id: animationId,
         type: 'move',
-        startPos: getBuildingPos(anim.start),
-        endPos: getBuildingPos(anim.end),
-        color: anim.color,
-        label: anim.label
+        startPos: getBuildingCenter(animation.start),
+        endPos: getBuildingCenter(animation.end),
+        color: animation.color,
+        label: animation.label,
       });
 
-      setTimeout(() => removeAnimation(animId), duration);
+      window.setTimeout(() => removeAnimation(animationId), duration);
     }
 
-    await new Promise(r => setTimeout(r, duration * (animations.length > 1 ? 2 : 1)));
+    await wait(duration * (animations.length > 1 ? 2 : 1));
 
-    // Final State Update
-    const nextRegs = result.registers ?? registers;
-    const nextMem = result.memory ?? memory;
+    const nextRegisters = result.registers ?? registers;
+    const nextMemory = result.memory ?? memory;
     const nextStack = result.stack ?? stack;
-    const writtenMemAddr = result.memory ? getMemoryAddr(instr.args[1]) : null;
-    const nextPC = result.nextPC ?? pc;
+    const writtenMemAddr = result.memory ? getMemoryAddr(instruction.args[1]) : null;
+    const memoryAccess = getMemoryAccessEvent(instruction);
+    const nextPC = result.nextPC ?? pc + 1;
     const didCompleteNaturally = result.halted !== true && nextPC >= instructions.length;
-    
-    set(state => {
-      const executedCount = state.metrics.instructions + 1;
+
+    set((current) => {
+      const executedCount = current.metrics.instructions + 1;
       const executionLog = [
-        ...state.executionLog,
-        { step: state.pc + 1, instruction: instr.raw, result: result.logMessage },
+        ...current.executionLog,
+        { step: current.pc + 1, instruction: instruction.raw, result: result.logMessage },
       ];
 
       if (didCompleteNaturally) {
         executionLog.push({
           step: nextPC,
           instruction: 'COMPLETE',
-          result: `✓ Program complete — ${executedCount} instructions executed`,
+          result: `Program complete after ${executedCount} executed instructions.`,
           isComplete: true,
         });
       }
 
       return {
-        registers: nextRegs,
-        memory: nextMem,
+        registers: nextRegisters,
+        memory: nextMemory,
         stack: nextStack,
         pc: nextPC,
         executionLog,
         activeBuildings: {},
         ...(writtenMemAddr !== null ? { lastWrittenMemAddr: writtenMemAddr } : {}),
+        lastMemoryAccess: memoryAccess,
         isAnimating: false,
+        errorFlashTarget: null,
+        lastErrorLine: null,
         metrics: {
           instructions: executedCount,
-          regWrites: result.registers ? state.metrics.regWrites + 1 : state.metrics.regWrites,
-          memWrites: result.memory ? state.metrics.memWrites + 1 : state.metrics.memWrites,
-          stackMax: Math.max(state.metrics.stackMax, nextStack.length)
-        }
+          regWrites: result.registers ? current.metrics.regWrites + 1 : current.metrics.regWrites,
+          memWrites: result.memory ? current.metrics.memWrites + 1 : current.metrics.memWrites,
+          stackMax: Math.max(current.metrics.stackMax, nextStack.length),
+        },
       };
     });
 
     if (writtenMemAddr !== null) {
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (get().lastWrittenMemAddr === writtenMemAddr) {
           set({ lastWrittenMemAddr: null });
         }
       }, 800);
     }
 
+    if (memoryAccess) {
+      window.setTimeout(() => {
+        const currentAccess = get().lastMemoryAccess;
+        if (currentAccess && currentAccess.addr === memoryAccess.addr && currentAccess.kind === memoryAccess.kind) {
+          set({ lastMemoryAccess: null });
+        }
+      }, 1100);
+    }
+
     if (result.halted === true || result.nextPC === -1) {
       set({ isRunning: false, isPaused: true });
     }
-  }
+  },
 }));
+
+function cloneRegisters(registers: Record<string, number>) {
+  return { ...registers };
+}
+
+function cloneExecutionLog(executionLog: LogEntry[]) {
+  return executionLog.map((entry) => ({ ...entry }));
+}
+
+function cloneMetrics(metrics: Metrics) {
+  return { ...metrics };
+}
+
+function createHistorySnapshot(state: CPUState): HistorySnapshot {
+  return {
+    registers: cloneRegisters(state.registers),
+    memory: [...state.memory],
+    stack: [...state.stack],
+    pc: state.pc,
+    instructions: state.instructions,
+    labels: { ...state.labels },
+    executionLog: cloneExecutionLog(state.executionLog),
+    lastWrittenMemAddr: state.lastWrittenMemAddr,
+    lastMemoryAccess: state.lastMemoryAccess ? { ...state.lastMemoryAccess } : null,
+    rawCode: state.rawCode,
+    metrics: cloneMetrics(state.metrics),
+    awaitingInput: state.awaitingInput ? { ...state.awaitingInput } : null,
+    programErrors: state.programErrors.map((error) => ({ ...error })),
+    lastErrorLine: state.lastErrorLine,
+  };
+}
+
+function appendHistory(state: CPUState) {
+  return [...state.history.slice(-39), createHistorySnapshot(state)];
+}
+
+function restoreSnapshot(snapshot: HistorySnapshot) {
+  return {
+    registers: cloneRegisters(snapshot.registers),
+    memory: [...snapshot.memory],
+    stack: [...snapshot.stack],
+    pc: snapshot.pc,
+    instructions: snapshot.instructions,
+    labels: { ...snapshot.labels },
+    executionLog: cloneExecutionLog(snapshot.executionLog),
+    lastWrittenMemAddr: snapshot.lastWrittenMemAddr,
+    lastMemoryAccess: snapshot.lastMemoryAccess ? { ...snapshot.lastMemoryAccess } : null,
+    rawCode: snapshot.rawCode,
+    metrics: cloneMetrics(snapshot.metrics),
+    awaitingInput: snapshot.awaitingInput ? { ...snapshot.awaitingInput } : null,
+    programErrors: snapshot.programErrors.map((error) => ({ ...error })),
+    lastErrorLine: snapshot.lastErrorLine,
+    currentAnimations: [],
+    activeBuildings: {},
+    isAnimating: false,
+    isPaused: true,
+    isRunning: false,
+    errorFlashTarget: null,
+  };
+}
 
 function getMemoryAddr(arg?: string) {
   if (!arg) return null;
-  const addr = Number(arg.replace('MEM[', '').replace('[', '').replace(']', ''));
+  const addr = Number(arg.replace('MEM[', '').replace(']', ''));
   return Number.isFinite(addr) ? addr : null;
+}
+
+function getMemoryAccessEvent(instruction: Instruction) {
+  if (instruction.opcode === 'LOAD') {
+    const addr = getMemoryAddr(instruction.args[1]);
+    return addr !== null ? { addr, kind: 'read' as const } : null;
+  }
+
+  if (instruction.opcode === 'STORE') {
+    const addr = getMemoryAddr(instruction.args[1]);
+    return addr !== null ? { addr, kind: 'write' as const } : null;
+  }
+
+  return null;
 }
 
 function animationSpecToAnimation(spec: NonNullable<ExecutionResult['animationSpec']>) {
   return {
-    type: spec.type,
+    type: 'move' as const,
     start: spec.from,
     end: spec.to,
     color: spec.color,
-    label: spec.label
+    label: spec.label,
+    delay: 0,
   };
 }
 
-function getBuildingPos(id: string) {
-  const normalized = id.toUpperCase();
-  if (normalized === 'PC') return { x: 400, y: 70 };
-  if (normalized === 'R0') return { x: 84, y: 127 };
-  if (normalized === 'R1') return { x: 84, y: 181 };
-  if (normalized === 'R2') return { x: 84, y: 235 };
-  if (normalized === 'R3') return { x: 84, y: 289 };
-  if (normalized === 'R4') return { x: 84, y: 343 };
-  if (normalized === 'R5') return { x: 84, y: 397 };
-  if (normalized === 'ALU') return { x: 400, y: 330 };
-  if (normalized === 'RAM' || normalized === 'MEM') return { x: 700, y: 190 };
-  if (normalized === 'STACK') return { x: 700, y: 480 };
-  return { x: 400, y: 300 };
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

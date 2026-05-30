@@ -3,261 +3,324 @@
 import React, { useEffect } from 'react';
 import { BuildingBox } from './BuildingBox';
 import { DataCar } from './DataCar';
+import { CityCanvas } from './CityCanvas';
+import { CityBackdrop } from './CityBackdrop';
+import { AmbientTraffic } from './AmbientTraffic';
+import { CarSprite } from './CarSprite';
 import { useCPUStore } from '@/store/use-cpu-store';
 import { cn } from '@/lib/utils';
-import { 
-  Home, 
-  Factory, 
-  Warehouse, 
-  Layers, 
+import { BUILDINGS, CITY_ROADS, REGISTER_IDS } from '@/config/buildings';
+import {
+  Home,
+  Factory,
+  Warehouse,
+  Layers,
   Clock,
   Navigation,
   Sun,
   Moon,
   TreeDeciduous,
-  Car
 } from 'lucide-react';
 
+const ICONS = {
+  PC: <Clock className="w-3 h-3" />,
+  ALU: <Factory className="w-3.5 h-3.5" />,
+  RAM: <Warehouse className="w-3 h-3" />,
+  STACK: <Layers className="w-3 h-3" />,
+};
+
 export const CityMap = () => {
-  const { 
-    pc, registers, memory, stack, currentAnimations, speed, theme, toggleTheme, introPhase, setIntroPhase 
+  const {
+    pc,
+    registers,
+    memory,
+    stack,
+    currentAnimations,
+    speed,
+    theme,
+    toggleTheme,
+    introPhase,
+    setIntroPhase,
+    activeBuildings,
+    errorFlashTarget,
+    lastWrittenMemAddr,
+    lastMemoryAccess,
   } = useCPUStore();
 
-  // Intro Sequence
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIntroPhase(Math.min(introPhase + 1, 6));
-    }, 200);
-    return () => clearInterval(timer);
-  }, [introPhase]);
+  const activeMemoryCount = memory.filter((value) => value !== null).length;
+  const isMemoryIdle = activeMemoryCount === 0;
 
-  const RoadLabel = ({ x, y, rotate = 0, text }: { x: string, y: string, rotate?: number, text: string }) => (
-    <div 
+  useEffect(() => {
+    if (introPhase >= 6) return;
+    const timer = window.setTimeout(() => {
+      setIntroPhase(Math.min(introPhase + 1, 6));
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [introPhase, setIntroPhase]);
+
+  const RoadLabel = ({ x, y, rotate = 0, text }: { x: number; y: number; rotate?: number; text: string }) => (
+    <div
       className="absolute pointer-events-none text-[9px] font-medium text-muted uppercase tracking-[0.2em] opacity-40"
-      style={{ left: x, top: y, transform: `rotate(${rotate}deg)` }}
+      style={{ left: `${x}px`, top: `${y}px`, transform: `rotate(${rotate}deg)` }}
     >
       {text}
     </div>
   );
 
-  const RoadArrow = ({ x, y, rotate = 0 }: { x: string, y: string, rotate?: number }) => (
-    <svg 
+  const RoadArrow = ({ x, y, rotate = 0 }: { x: number; y: number; rotate?: number }) => (
+    <svg
       className="absolute pointer-events-none opacity-20 fill-muted"
-      width="8" height="8" viewBox="0 0 8 8"
-      style={{ left: x, top: y, transform: `rotate(${rotate}deg)` }}
+      width="8"
+      height="8"
+      viewBox="0 0 8 8"
+      style={{ left: `${x}px`, top: `${y}px`, transform: `rotate(${rotate}deg)` }}
     >
       <path d="M0 8 L4 0 L8 8 L4 6 Z" />
     </svg>
   );
 
-  const DecorativeTree = ({ x, y }: { x: number, y: number }) => (
-    <TreeDeciduous 
-      className="absolute text-emerald-600/30 w-4 h-4" 
-      style={{ left: `${x}px`, top: `${y}px` }} 
-    />
+  const DecorativeTree = ({ x, y }: { x: number; y: number }) => (
+    <TreeDeciduous className="absolute text-emerald-600/30 w-4 h-4" style={{ left: `${x}px`, top: `${y}px` }} />
   );
 
-  const ParkedCar = ({ x, y, color }: { x: number, y: number, color: string }) => (
-    <Car 
-      className="absolute w-3 h-3 opacity-20" 
-      style={{ left: `${x}px`, top: `${y}px`, color }} 
-    />
+  const ParkedCar = ({ x, y, color }: { x: number; y: number; color: string }) => (
+    <div className="absolute z-[8] opacity-70" style={{ left: `${x}px`, top: `${y}px` }}>
+      <CarSprite color={color} size="sm" muted />
+    </div>
   );
 
   return (
-    <div className={cn("relative flex-1 bg-map overflow-hidden bg-city-grid transition-all duration-700", theme === 'night' && "night-mode")}>
-      {/* SVG Roads */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50">
-        <defs>
-          <pattern id="roadPattern" width="10" height="10" patternUnits="userSpaceOnUse">
-            <line x1="0" y1="5" x2="10" y2="5" className="stroke-road" strokeWidth="10" />
-            <line x1="0" y1="5" x2="10" y2="5" className="stroke-muted/20" strokeWidth="2" strokeDasharray="4 4" />
-          </pattern>
-        </defs>
-        
-        <path d="M400 100 L400 650" stroke="url(#roadPattern)" strokeWidth="12" fill="none" />
-        <path d="M100 300 L700 300" stroke="url(#roadPattern)" strokeWidth="12" fill="none" />
-        <path d="M100 450 L700 450" stroke="url(#roadPattern)" strokeWidth="12" fill="none" />
-        <path d="M130 150 L130 650" stroke="url(#roadPattern)" strokeWidth="12" fill="none" />
-        <path d="M600 100 L600 650" stroke="url(#roadPattern)" strokeWidth="12" fill="none" />
-      </svg>
+    <div className={cn('relative flex-1 bg-map overflow-auto transition-all duration-700 city-frame', theme === 'night' && 'night-mode')}>
+      <div className="relative mx-auto h-full min-h-[700px] w-[900px] px-5 py-4">
+        <div className="absolute inset-[8px] rounded-[36px] bg-white/40 night-mode:bg-black/10 backdrop-blur-[2px] border border-white/30 night-mode:border-white/5 shadow-[0_24px_60px_rgba(116,82,32,0.16)]" />
+        <div className="absolute inset-[18px] rounded-[30px] border border-[#DCCFB8]/70 night-mode:border-[#514539]/60 pointer-events-none" />
 
-      {/* Road Labels */}
-      <RoadLabel x="408px" y="200px" rotate={90} text="Data Bus Blvd" />
-      <RoadLabel x="138px" y="220px" rotate={90} text="Address Lane" />
-      <RoadLabel x="220px" y="292px" text="Control Highway" />
-      <RoadLabel x="440px" y="442px" text="Stack Pointer Road" />
+        <CityBackdrop theme={theme} />
+        <CityCanvas theme={theme} />
+        <AmbientTraffic />
 
-      {/* Road Arrows */}
-      <RoadArrow x="396px" y="150px" rotate={180} />
-      <RoadArrow x="250px" y="296px" rotate={90} />
-      <RoadArrow x="500px" y="446px" rotate={90} />
+        {CITY_ROADS.map((road, index) => (
+          <React.Fragment key={`${road.from.x}-${road.from.y}-${index}`}>
+            {road.label && <RoadLabel {...road.label} />}
+            {road.arrow && <RoadArrow {...road.arrow} />}
+          </React.Fragment>
+        ))}
 
-      {/* Decorations */}
-      <DecorativeTree x={220} y={120} />
-      <DecorativeTree x={240} y={135} />
-      <DecorativeTree x={500} y={180} />
-      <DecorativeTree x={520} y={550} />
-      <DecorativeTree x={540} y={565} />
-      
-      <ParkedCar x={360} y={60} color="#185FA5" />
-      <ParkedCar x={440} y={60} color="#1D9E75" />
-      <ParkedCar x={640} y={150} color="#BA7517" />
+        <DecorativeTree x={220} y={120} />
+        <DecorativeTree x={240} y={135} />
+        <DecorativeTree x={500} y={180} />
+        <DecorativeTree x={520} y={550} />
+        <DecorativeTree x={540} y={565} />
+        <DecorativeTree x={740} y={268} />
+        <DecorativeTree x={206} y={590} />
+        <DecorativeTree x={622} y={610} />
 
-      {/* Data Cars */}
-      {currentAnimations.map(anim => (
-        anim.type === 'move' && anim.startPos && anim.endPos && (
-          <DataCar 
-            key={anim.id}
-            startPos={anim.startPos}
-            endPos={anim.endPos}
-            color={anim.color || '#1D9E75'}
-            label={anim.label || ''}
-            duration={1000 / speed}
-          />
-        )
-      ))}
+        <ParkedCar x={360} y={60} color="#185FA5" />
+        <ParkedCar x={440} y={60} color="#1D9E75" />
+        <ParkedCar x={650} y={150} color="#BA7517" />
 
-      {/* BUILDINGS WITH INTRO ANIMATION */}
-      
-      {/* PC Tower */}
-      {introPhase >= 1 && (
-        <BuildingBox
-          id="PC"
-          title="PC Tower"
-          description="The Program Counter tracks the current address of the instruction being executed."
-          icon={<Clock className="w-3 h-3" />}
-          style={{ top: '40px', left: '400px', transform: 'translateX(-50%)' }}
-          width={140}
-          height={60}
-          color="bg-[#F1EFE8] night-mode:bg-[#3D362E]"
-          headerColor="bg-[#888780]"
-          borderColor="border-[#888780]"
-        >
-          <div className="flex flex-col items-center justify-center h-full">
-            <span className="text-[12px] font-code font-bold text-[#888780]">IP: 0x{pc.toString(16).padStart(4, '0')}</span>
-          </div>
-        </BuildingBox>
-      )}
+        {currentAnimations.map((animation) => (
+          animation.type === 'move' && animation.startPos && animation.endPos && (
+            <DataCar
+              key={animation.id}
+              startPos={animation.startPos}
+              endPos={animation.endPos}
+              color={animation.color || '#1D9E75'}
+              label={animation.label || ''}
+              duration={1000 / speed}
+            />
+          )
+        ))}
 
-      {/* Register Apartments */}
-      <div className="absolute top-[100px] left-[40px] flex flex-col gap-1.5">
-        {['R0', 'R1', 'R2', 'R3', 'R4', 'R5'].map((reg, idx) => introPhase >= Math.min(2 + idx, 6) && (
+        {introPhase >= 1 && (
           <BuildingBox
-            key={reg}
-            id={reg}
-            title={reg}
-            description={`Fast storage for immediate data manipulation.`}
-            icon={<Home className="w-3 h-3" />}
-            width={88}
-            height={50}
-            color="bg-[#EBF4FD] night-mode:bg-[#1A2E44]"
-            headerColor="bg-[#185FA5]"
-            borderColor="border-[#185FA5]"
+            id="PC"
+            title={BUILDINGS.PC.title}
+            description={BUILDINGS.PC.description}
+            icon={ICONS.PC}
+            style={{ top: `${BUILDINGS.PC.y}px`, left: `${BUILDINGS.PC.x}px` }}
+            width={BUILDINGS.PC.width}
+            height={BUILDINGS.PC.height}
+            color={BUILDINGS.PC.bodyClassName}
+            headerColor={BUILDINGS.PC.headerClassName}
+            borderColor={BUILDINGS.PC.borderClassName}
           >
-            <div className="flex items-center justify-center h-full">
-              <span key={registers[reg]} className="text-[14px] font-code font-semibold text-[#185FA5] number-flip-in">
-                {registers[reg] !== null && registers[reg] !== undefined ? registers[reg] : '—'}
+            <div className="flex flex-col items-center justify-center h-full">
+              <span className="text-[12px] font-code font-bold text-[#888780]">IP: 0x{pc.toString(16).padStart(4, '0')}</span>
+            </div>
+          </BuildingBox>
+        )}
+
+        {REGISTER_IDS.map((id, index) => {
+          const building = BUILDINGS[id];
+          if (introPhase < Math.min(2 + index, 6)) {
+            return null;
+          }
+
+          return (
+            <BuildingBox
+              key={id}
+              id={id}
+              title={building.title}
+              description={building.description}
+              icon={<Home className="w-3 h-3" />}
+              style={{ top: `${building.y}px`, left: `${building.x}px` }}
+              width={building.width}
+              height={building.height}
+              color={building.bodyClassName}
+              headerColor={building.headerClassName}
+              borderColor={building.borderClassName}
+              titleClassName="text-[11px] font-black tracking-[0.18em] text-[#2B1D14] bg-[#E9D4AF] px-1.5 py-0.5 rounded-md shadow-sm"
+              contentClassName="pt-1 bg-[#433429]"
+            >
+              <div className="flex items-center justify-center h-full">
+                <span key={registers[id]} className="text-[17px] font-code font-extrabold text-[#F7D49A] number-flip-in drop-shadow-[0_0_10px_rgba(215,160,87,0.18)]">
+                  {registers[id] ?? '—'}
+                </span>
+              </div>
+            </BuildingBox>
+          );
+        })}
+
+        {introPhase >= 4 && (
+          <BuildingBox
+            id="ALU"
+            title={BUILDINGS.ALU.title}
+            description={BUILDINGS.ALU.description}
+            icon={ICONS.ALU}
+            style={{ top: `${BUILDINGS.ALU.y}px`, left: `${BUILDINGS.ALU.x}px` }}
+            width={BUILDINGS.ALU.width}
+            height={BUILDINGS.ALU.height}
+            color={BUILDINGS.ALU.bodyClassName}
+            headerColor={BUILDINGS.ALU.headerClassName}
+            borderColor={BUILDINGS.ALU.borderClassName}
+            prominent={BUILDINGS.ALU.prominent}
+          >
+            <div className="flex flex-col items-center justify-center h-full gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0F6E56] shadow-inner">
+                <div className={cn('w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]', activeBuildings.ALU ? 'bg-emerald-400 animate-pulse' : 'bg-white/40')} />
+                <span className="text-[9px] text-white font-bold uppercase tracking-wider">
+                  {activeBuildings.ALU ? 'Processing' : 'Standing By'}
+                </span>
+              </div>
+              <span className="text-[14px] font-code font-bold text-[#0F6E56]">
+                {activeBuildings.ALU ? 'ALU BUSY' : 'ALU READY'}
               </span>
             </div>
           </BuildingBox>
-        ))}
-      </div>
+        )}
 
-      {/* ALU Factory */}
-      {introPhase >= 4 && (
-        <BuildingBox
-          id="ALU"
-          title="ALU Complex"
-          description="Performs all mathematical and logical operations."
-          icon={<Factory className="w-3.5 h-3.5" />}
-          style={{ top: '270px', left: '400px', transform: 'translateX(-50%)' }}
-          width={190}
-          height={120}
-          color="bg-[#E1F5EE] night-mode:bg-[#0F2D25]"
-          headerColor="bg-[#0A5D48]"
-          borderColor="border-[#0A5D48]"
-          prominent
-        >
-          <div className="flex flex-col items-center justify-center h-full gap-2">
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#0F6E56] shadow-inner">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span className="text-[9px] text-white font-bold uppercase tracking-wider">Active</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[14px] font-code font-bold text-[#0F6E56]">COMPUTING...</span>
-            </div>
-          </div>
-        </BuildingBox>
-      )}
-
-      {/* RAM Depot */}
-      {introPhase >= 5 && (
-        <BuildingBox
-          id="RAM"
-          title="RAM Depot"
-          description="Main system memory for program code and variables."
-          icon={<Warehouse className="w-3 h-3" />}
-          style={{ top: '100px', right: '40px' }}
-          width={124}
-          height={180}
-          color="bg-[#FEF3DC] night-mode:bg-[#3D2B12]"
-          headerColor="bg-[#BA7517]"
-          borderColor="border-[#BA7517]"
-        >
-          <div className="p-1.5 flex flex-col gap-1">
-            {memory.slice(0, 6).map((val, i) => (
-              <div key={i} className="flex justify-between items-center text-[9px] font-code border-b border-warning/10 pb-0.5">
-                <span className="text-warning/70 font-bold">[{i}]</span>
-                <span key={val} className="font-semibold number-flip-in">{val || 0}</span>
+        {introPhase >= 5 && (
+          <BuildingBox
+            id="RAM"
+            title={BUILDINGS.RAM.title}
+            description={BUILDINGS.RAM.description}
+            icon={ICONS.RAM}
+            style={{ top: `${BUILDINGS.RAM.y}px`, left: `${BUILDINGS.RAM.x}px` }}
+            width={BUILDINGS.RAM.width}
+            height={BUILDINGS.RAM.height}
+            color={cn(BUILDINGS.RAM.bodyClassName, errorFlashTarget === 'RAM' && 'memory-error-flash')}
+            headerColor={BUILDINGS.RAM.headerClassName}
+            borderColor={BUILDINGS.RAM.borderClassName}
+            prominent={BUILDINGS.RAM.prominent}
+            titleClassName="text-[11px] font-extrabold tracking-[0.2em] text-[#FFF4DE]"
+            contentClassName="px-2 py-1 bg-[#573B1B]"
+          >
+            <div className="flex h-full flex-col">
+              <div className="mb-1 flex items-center justify-between px-0.5">
+                <span className="text-[8px] font-semibold uppercase tracking-[0.18em] text-[#F7D9A4]">Live LOAD/STORE View</span>
+                <span className="rounded-full bg-[#7B5324] px-1.5 py-0.5 text-[8px] font-bold text-[#FFE8B7] border border-[#D5A35A]/50">{activeMemoryCount}/16 used</span>
               </div>
-            ))}
-          </div>
-        </BuildingBox>
-      )}
-
-      {/* Stack Yard */}
-      {introPhase >= 6 && (
-        <BuildingBox
-          id="STACK"
-          title="Stack Yard"
-          description="LIFO storage for function calls and local state."
-          icon={<Layers className="w-3 h-3" />}
-          style={{ bottom: '80px', right: '40px' }}
-          width={124}
-          height={180}
-          color="bg-[#FDF0F5] night-mode:bg-[#2D161C]"
-          headerColor="bg-[#993556]"
-          borderColor="border-[#993556]"
-          prominent={stack.length > 8}
-        >
-          <div className={cn("p-2 flex flex-col-reverse h-full justify-start gap-1.5", stack.length > 8 && "shake-anim")}>
-            {stack.slice(0, 5).map((val, i) => (
-              <div key={i} className="h-6 w-full rounded bg-white/60 night-mode:bg-white/10 border border-[#993556]/20 flex items-center justify-center shadow-sm animate-in slide-in-from-top-2 duration-300">
-                 <span className="text-[10px] font-code font-bold text-stack">{val}</span>
+              <div className="grid flex-1 grid-cols-4 gap-1.5">
+                {memory.slice(0, 16).map((value, index) => {
+                  const accessKind = lastMemoryAccess?.addr === index ? lastMemoryAccess.kind : null;
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'rounded-lg border border-[#D5A35A]/25 bg-[#FFF3E0] px-1 py-1.5 text-center shadow-sm transition-all duration-300',
+                        value !== null && 'bg-[#F9D79F] border-[#E5B45E]',
+                        lastWrittenMemAddr === index && 'ring-2 ring-amber-400 bg-amber-100/80',
+                        accessKind === 'read' && 'ring-2 ring-sky-300 bg-sky-50/80',
+                        accessKind === 'write' && 'ring-2 ring-amber-400 bg-amber-100/90'
+                      )}
+                    >
+                      <div className="text-[7px] font-code font-bold text-[#9A681E]">[{index}]</div>
+                      <div key={`${index}-${value}`} className={cn('mt-0.5 text-[10px] font-code font-extrabold number-flip-in', value === null ? 'text-[#C8A06B]' : 'text-[#A96A13]')}>
+                        {value === null ? '--' : value}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-            {stack.length === 0 && <div className="text-[9px] text-dim text-center mt-4">Empty</div>}
+              <div className="mt-1 px-0.5 text-[8px] font-medium text-[#F0D0A2]">
+                {isMemoryIdle ? 'No STORE instruction has written to memory yet.' : 'RAM Depot is the city-map view of memory slots.'}
+              </div>
+            </div>
+          </BuildingBox>
+        )}
+
+        {introPhase >= 6 && (
+          <BuildingBox
+            id="STACK"
+            title={BUILDINGS.STACK.title}
+            description={BUILDINGS.STACK.description}
+            icon={ICONS.STACK}
+            style={{ top: `${BUILDINGS.STACK.y}px`, left: `${BUILDINGS.STACK.x}px` }}
+            width={BUILDINGS.STACK.width}
+            height={BUILDINGS.STACK.height}
+            color={cn(BUILDINGS.STACK.bodyClassName, errorFlashTarget === 'STACK' && 'stack-error-flash')}
+            headerColor={BUILDINGS.STACK.headerClassName}
+            borderColor={BUILDINGS.STACK.borderClassName}
+            prominent={BUILDINGS.STACK.prominent}
+            titleClassName="text-[11px] font-extrabold tracking-[0.2em] text-[#FFE8F0]"
+            contentClassName="px-2 py-1 bg-[#4D2E3D]"
+          >
+            <div className={cn('flex h-full flex-col', stack.length > 8 && 'shake-anim')}>
+              <div className="mb-1 flex items-center justify-between px-0.5">
+                <span className="text-[8px] font-semibold uppercase tracking-[0.18em] text-[#F7C7D8]">PUSH / POP Garage</span>
+                <span className="rounded-full bg-[#6E3B53] px-1.5 py-0.5 text-[8px] font-bold text-[#FFDDEA] border border-[#C9839D]/50">{stack.length} parked</span>
+              </div>
+              <div className="flex flex-1 flex-col-reverse justify-start gap-1.5">
+                {stack.slice(-6).map((value, index) => (
+                  <div
+                    key={`${value}-${index}`}
+                    className="h-7 w-full rounded-lg bg-[#FFF2F6] border border-[#C9839D]/28 flex items-center justify-between px-2 shadow-sm animate-in slide-in-from-top-2 duration-300"
+                  >
+                    <span className="text-[8px] font-code font-semibold text-[#8C3E5D]">SP-{stack.length - index}</span>
+                    <span className="text-[11px] font-code font-extrabold text-[#A13A61]">{value}</span>
+                  </div>
+                ))}
+                {stack.length > 6 && (
+                  <div className="text-[8px] text-[#F6C9D9] text-center font-semibold">+{stack.length - 6} lower levels</div>
+                )}
+                {stack.length === 0 && <div className="text-[9px] text-[#F2D4DE] text-center mt-4">No PUSH instruction has filled the garage yet.</div>}
+              </div>
+              <div className="mt-1 px-0.5 text-[8px] font-medium text-[#F1CAD8]">Stack Yard is the city-map view of the LIFO stack.</div>
+            </div>
+          </BuildingBox>
+        )}
+
+        <button
+          onClick={toggleTheme}
+          className="absolute top-8 right-8 z-50 p-2 rounded-full bg-white/85 night-mode:bg-white/10 border border-border shadow-md hover:scale-110 transition-transform"
+        >
+          {theme === 'day' ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-yellow-400" />}
+        </button>
+
+        <div className="absolute bottom-20 right-52 flex flex-col items-center opacity-30 pointer-events-none">
+          <Navigation className="w-6 h-6 text-muted-foreground rotate-45" />
+          <div className="grid grid-cols-3 grid-rows-3 gap-0 text-[10px] font-bold text-muted-foreground">
+            <span className="col-start-2 row-start-1 text-center">N</span>
+            <span className="col-start-1 row-start-2 text-right mr-1">W</span>
+            <span className="col-start-3 row-start-2 text-left ml-1">E</span>
+            <span className="col-start-2 row-start-3 text-center">S</span>
           </div>
-        </BuildingBox>
-      )}
+        </div>
 
-      {/* Theme Toggle */}
-      <button 
-        onClick={toggleTheme}
-        className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 night-mode:bg-white/10 border border-border shadow-md hover:scale-110 transition-transform"
-      >
-        {theme === 'day' ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-yellow-400" />}
-      </button>
-
-      {/* Compass Rose */}
-      <div className="absolute bottom-16 right-48 flex flex-col items-center opacity-30 pointer-events-none">
-        <Navigation className="w-6 h-6 text-muted-foreground rotate-45" />
-        <div className="grid grid-cols-3 grid-rows-3 gap-0 text-[10px] font-bold text-muted-foreground">
-          <span className="col-start-2 row-start-1 text-center">N</span>
-          <span className="col-start-1 row-start-2 text-right mr-1">W</span>
-          <span className="col-start-3 row-start-2 text-left ml-1">E</span>
-          <span className="col-start-2 row-start-3 text-center">S</span>
+        <div className="absolute left-8 bottom-8 z-[12] rounded-2xl border border-white/40 bg-white/75 px-4 py-3 shadow-lg backdrop-blur-sm night-mode:bg-[#1A1713]/70 night-mode:border-white/10">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-dim">City View</div>
+          <div className="mt-1 text-[12px] font-semibold text-foreground">Live traffic shows data moving between CPU districts.</div>
         </div>
       </div>
     </div>

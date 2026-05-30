@@ -23,6 +23,8 @@ interface BuildingBoxProps {
   borderColor: string;
   style?: React.CSSProperties;
   prominent?: boolean;
+  titleClassName?: string;
+  contentClassName?: string;
 }
 
 export const BuildingBox = ({
@@ -37,9 +39,11 @@ export const BuildingBox = ({
   headerColor,
   borderColor,
   style,
-  prominent
+  prominent,
+  titleClassName,
+  contentClassName,
 }: BuildingBoxProps) => {
-  const { activeBuildings, theme } = useCPUStore();
+  const { activeBuildings } = useCPUStore();
   const status = id ? activeBuildings[id] : null;
 
   return (
@@ -63,11 +67,11 @@ export const BuildingBox = ({
             }}
           >
             <div className={cn(
-              "h-[22px] flex items-center justify-between px-2 text-white relative",
+              "h-[24px] flex items-center justify-between px-2 text-white relative",
               headerColor,
               prominent && status === 'dest' && "alu-sweep"
             )}>
-              <span className="text-[10px] font-medium uppercase tracking-wider flex items-center gap-1.5 z-10">
+              <span className={cn("text-[10px] font-medium uppercase tracking-wider flex items-center gap-1.5 z-10", titleClassName)}>
                 {icon}
                 {title}
               </span>
@@ -77,7 +81,7 @@ export const BuildingBox = ({
                 <div className="w-1 h-1 rounded-sm bg-white/20 building-window" />
               </div>
             </div>
-            <div className="h-[calc(100%-22px)] p-1 overflow-hidden bg-white/20 backdrop-blur-[1px]">
+            <div className={cn("h-[calc(100%-24px)] p-1 overflow-hidden bg-white/20 backdrop-blur-[1px]", contentClassName)}>
               {children}
             </div>
           </div>

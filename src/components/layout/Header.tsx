@@ -1,20 +1,23 @@
 'use client';
 
 import React from 'react';
-import { Building2, RotateCcw } from 'lucide-react';
+import { Building2, RotateCcw, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCPUStore } from '@/store/use-cpu-store';
 import { cn } from '@/lib/utils';
 
 export const Header = ({ 
   currentInstruction,
-  onReset
+  onReset,
+  onUndo,
 }: { 
   currentInstruction?: string,
-  onReset: () => void
+  onReset: () => void,
+  onUndo: () => void,
 }) => {
-  const { isRunning, isPaused, pc } = useCPUStore();
+  const { isRunning, isPaused, pc, history, isAnimating, programErrors } = useCPUStore();
   const status =
+    programErrors.length > 0   ? 'ERRORS'  :
     isRunning && !isPaused ? 'RUNNING' :
     isRunning && isPaused  ? 'PAUSED'  :
     pc === -1              ? 'HALTED'  :
@@ -22,6 +25,7 @@ export const Header = ({
     'IDLE';
 
   const statusDotClass =
+    status === 'ERRORS'  ? "bg-destructive animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]" :
     status === 'RUNNING' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" :
     status === 'PAUSED'  ? "bg-amber-400" :
     status === 'HALTED'  ? "bg-red-500" :
@@ -60,6 +64,16 @@ export const Header = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          onClick={onUndo}
+          variant="outline"
+          size="sm"
+          disabled={history.length === 0 || isAnimating}
+          className="h-8 border-primary/20 text-primary hover:bg-primary/5 font-medium gap-1.5 disabled:opacity-50"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+          Undo
+        </Button>
         <Button 
           onClick={onReset}
           variant="outline" 

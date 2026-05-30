@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Check, ChevronDown, FileCode, Plus } from 'lucide-react';
+import { Check, ChevronDown, FileCode, PlaySquare, Plus, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCPUStore, SAMPLES } from '@/store/use-cpu-store';
 import {
@@ -10,47 +10,69 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 
-export const LeftPanel = ({ 
-  onAiGenerate 
-}: { 
-  onAiGenerate: () => void 
+const LINE_HEIGHT = 22;
+const EDITOR_PADDING_Y = 14;
+
+export const LeftPanel = ({
+  onLoadShowcase,
+}: {
+  onLoadShowcase: () => void;
 }) => {
-  const { instructions, pc, setProgram, rawCode, executionLog, reset } = useCPUStore();
+  const {
+    instructions,
+    pc,
+    setProgram,
+    rawCode,
+    executionLog,
+    programErrors,
+    lastErrorLine,
+  } = useCPUStore();
   const [codeValue, setCodeValue] = useState(rawCode);
+  const [scrollTop, setScrollTop] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     setCodeValue(rawCode);
   }, [rawCode]);
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setCodeValue(val);
-    setProgram(val);
+  const handleCodeChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = event.target.value;
+    setCodeValue(value);
+    setProgram(value, { pushHistory: false });
   };
 
   const handleNewProgram = () => {
-    reset();
     setCodeValue('');
-    setProgram('');
+    setProgram('', { pushHistory: true });
   };
 
   const getLogBorderColor = (instruction: string) => {
-    const i = instruction.toUpperCase();
-    if (i.includes('LOAD')) return 'border-l-blue-500';
-    if (i.includes('ADD') || i.includes('SUB') || i.includes('MUL')) return 'border-l-primary';
-    if (i.includes('PUSH') || i.includes('POP')) return 'border-l-stack';
-    if (i.includes('STORE')) return 'border-l-orange-500';
-    if (i.includes('JUMP')) return 'border-l-warning';
+    const normalized = instruction.toUpperCase();
+    if (normalized.includes('LOAD')) return 'border-l-blue-500';
+    if (normalized.includes('ADD') || normalized.includes('SUB') || normalized.includes('MUL')) return 'border-l-primary';
+    if (normalized.includes('PUSH') || normalized.includes('POP')) return 'border-l-stack';
+    if (normalized.includes('STORE')) return 'border-l-orange-500';
+    if (normalized.includes('JUMP')) return 'border-l-warning';
+    if (normalized.includes('READ')) return 'border-l-violet-500';
     return 'border-l-border';
   };
 
   const currentLineIndex = instructions[pc]?.line ?? -1;
+  const totalLines = Math.max(codeValue.split('\n').length, 10);
+  const lineNumbers = useMemo(() => Array.from({ length: totalLines }, (_, index) => index), [totalLines]);
+  const highlightedErrorLines = useMemo(() => {
+    const lines = new Set(programErrors.map((error) => error.line));
+    if (lastErrorLine !== null) {
+      lines.add(lastErrorLine);
+    }
+    return [...lines];
+  }, [lastErrorLine, programErrors]);
 
   return (
-    <aside className="w-[300px] h-full bg-panel border-r border-border flex flex-col p-4 gap-4 transition-colors duration-500">
+    <aside className="w-[320px] h-full bg-panel border-r border-border flex flex-col p-4 gap-4 transition-colors duration-500">
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -63,7 +85,11 @@ export const LeftPanel = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="bg-panel border-border">
                 {Object.entries(SAMPLES).map(([name, code]) => (
-                  <DropdownMenuItem key={name} onClick={() => setProgram(code)} className="text-[11px] font-medium gap-2">
+                  <DropdownMenuItem
+                    key={name}
+                    onClick={() => setProgram(code, { pushHistory: true })}
+                    className="text-[11px] font-medium gap-2"
+                  >
                     <FileCode className="w-3 h-3 text-primary" />
                     {name}
                   </DropdownMenuItem>
@@ -74,38 +100,94 @@ export const LeftPanel = ({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleNewProgram} className="h-6 px-2 text-[9px] gap-1">
               <Plus className="w-3 h-3" />
-              New Program
+              New
             </Button>
-            <button
-              onClick={onAiGenerate}
-              className="text-[10px] flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              AI ARCHITECT
-            </button>
+            <Button variant="outline" size="sm" onClick={onLoadShowcase} className="h-6 px-2 text-[9px] gap-1 border-primary/30 text-primary">
+              <PlaySquare className="w-3 h-3" />
+              Showcase
+            </Button>
           </div>
         </div>
+
         <div className="relative rounded-lg overflow-hidden border border-[#2A2A2A] bg-[#1C1917] shadow-lg">
-          {/* Editor background highlight */}
-          {currentLineIndex !== -1 && (
-            <div 
-              className="absolute left-0 w-full h-[22px] bg-primary/20 pointer-events-none transition-all duration-300 border-l-2 border-primary"
-              style={{ top: `${currentLineIndex * 22 + 16}px` }}
-            />
-          )}
+          <div className="absolute inset-y-0 left-0 w-11 border-r border-white/10 bg-[#151311] text-[10px] font-code text-[#7F7A6E]">
+            <div className="absolute inset-0" style={{ transform: `translateY(-${scrollTop}px)` }}>
+              {lineNumbers.map((line) => (
+                <div
+                  key={line}
+                  className={cn(
+                    'flex h-[22px] items-center justify-end pr-2 transition-colors',
+                    currentLineIndex === line && 'text-primary',
+                    highlightedErrorLines.includes(line) && 'text-destructive font-bold'
+                  )}
+                >
+                  {line + 1}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="absolute inset-y-0 left-11 right-0 pointer-events-none">
+            <div className="absolute inset-0" style={{ transform: `translateY(-${scrollTop}px)` }}>
+              {highlightedErrorLines.map((line) => (
+                <div
+                  key={`error-${line}`}
+                  className="absolute left-0 right-0 h-[22px] bg-destructive/10 border-l-2 border-destructive"
+                  style={{ top: `${line * LINE_HEIGHT + EDITOR_PADDING_Y}px` }}
+                />
+              ))}
+              {currentLineIndex !== -1 && (
+                <div
+                  className="absolute left-0 right-0 h-[22px] bg-primary/20 border-l-2 border-primary transition-all duration-300"
+                  style={{ top: `${currentLineIndex * LINE_HEIGHT + EDITOR_PADDING_Y}px` }}
+                />
+              )}
+            </div>
+          </div>
+
           <textarea
+            ref={textareaRef}
             value={codeValue}
             onChange={handleCodeChange}
-            placeholder={"# Write your assembly program here\n# Example:\nLOADI R1 5\nLOADI R2 3\nADD R1 R2 R3"}
-            className="w-full h-[220px] bg-transparent text-[#E8E3D4] font-code text-[12px] p-4 resize-none focus:outline-none leading-[22px] selection:bg-primary/40 relative z-10"
+            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            placeholder={'# Write your assembly program here\n# Example:\nLOADI R1 5\nLOADI R2 3\nADD R1 R2 R3'}
+            className="w-full h-[240px] bg-transparent text-[#E8E3D4] font-code text-[12px] pl-14 pr-4 pt-[14px] pb-[14px] resize-none focus:outline-none leading-[22px] selection:bg-primary/40 relative z-10"
             spellCheck={false}
           />
         </div>
+
+        <div className="flex items-center justify-between text-[10px]">
+          <span className={cn('font-medium', programErrors.length > 0 ? 'text-destructive' : 'text-primary')}>
+            {programErrors.length > 0 ? `${programErrors.length} syntax issue(s) blocking execution` : 'Program syntax ready'}
+          </span>
+          {lastErrorLine !== null && programErrors.length === 0 && (
+            <span className="text-destructive font-medium">Runtime stopped on line {lastErrorLine + 1}</span>
+          )}
+        </div>
+
+        {(programErrors.length > 0 || lastErrorLine !== null) && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px]">
+            <div className="flex items-center gap-2 font-semibold text-destructive mb-1">
+              <TriangleAlert className="w-3.5 h-3.5" />
+              Diagnostics
+            </div>
+            <div className="space-y-1">
+              {programErrors.slice(0, 3).map((error) => (
+                <div key={`${error.line}-${error.message}`} className="text-destructive/90">
+                  Line {error.line + 1}: {error.message}
+                </div>
+              ))}
+              {programErrors.length === 0 && lastErrorLine !== null && (
+                <div className="text-destructive/90">Last runtime error originated on line {lastErrorLine + 1}.</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim mb-3">Execution Log</h2>
-        
+
         <div className="absolute top-[28px] left-0 right-0 h-8 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none opacity-60" />
 
         <ScrollArea className="flex-1 rounded-lg border border-border bg-background/20 overflow-auto shadow-inner">
@@ -117,25 +199,25 @@ export const LeftPanel = ({
             </div>
           ) : (
             <div className="flex flex-col">
-              {[...executionLog].reverse().map((log, i) => (
-                <div 
-                  key={i} 
+              {[...executionLog].reverse().map((log, index) => (
+                <div
+                  key={`${log.step}-${index}`}
                   className={cn(
-                    "flex items-start gap-4 p-3 text-[12px] border-b border-border/40 border-l-4 transition-colors hover:bg-background/50",
+                    'flex items-start gap-4 p-3 text-[12px] border-b border-border/40 border-l-4 transition-colors hover:bg-background/50',
                     getLogBorderColor(log.instruction),
-                    log.isError && "bg-destructive/10 border-l-destructive",
-                    log.isComplete && "bg-primary/5 border-l-primary"
+                    log.isError && 'bg-destructive/10 border-l-destructive',
+                    log.isComplete && 'bg-primary/5 border-l-primary'
                   )}
                 >
                   <span className="font-code text-dim font-bold text-[10px] pt-1">
                     {log.step.toString().padStart(3, '0')}
                   </span>
                   <div className="flex-1">
-                    <div className={cn("font-bold text-foreground font-code flex items-center gap-2", log.isComplete && "text-primary")}>
+                    <div className={cn('font-bold text-foreground font-code flex items-center gap-2', log.isComplete && 'text-primary')}>
                       {log.instruction}
                       {!log.isError && <Check className="w-3 h-3 text-primary opacity-50" />}
                     </div>
-                    <div className={cn("text-[11px] mt-0.5 italic", log.isComplete ? "text-primary font-bold" : log.isError ? "text-destructive font-bold" : "text-muted-foreground")}>
+                    <div className={cn('text-[11px] mt-0.5 italic', log.isComplete ? 'text-primary font-bold' : log.isError ? 'text-destructive font-bold' : 'text-muted-foreground')}>
                       {log.result}
                     </div>
                   </div>
@@ -155,7 +237,7 @@ export const LeftPanel = ({
             { label: 'Stack', color: 'bg-stack' },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-2">
-              <div className={cn("w-2.5 h-2.5 rounded shadow-sm border border-black/5", item.color)} />
+              <div className={cn('w-2.5 h-2.5 rounded shadow-sm border border-black/5', item.color)} />
               <span className="text-[9px] text-muted font-bold uppercase tracking-tight">{item.label}</span>
             </div>
           ))}

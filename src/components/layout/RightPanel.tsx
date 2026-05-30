@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import { useCPUStore } from '@/store/use-cpu-store';
 
 export const RightPanel = () => {
-  const { registers, stack, memory, activeBuildings, lastWrittenMemAddr } = useCPUStore();
+  const { registers, stack, memory, activeBuildings, lastWrittenMemAddr, errorFlashTarget, lastMemoryAccess } = useCPUStore();
   const [lastModified, setLastModified] = useState<Record<string, 'write' | 'read' | null>>({});
+  const activeMemoryCount = memory.filter((value) => value !== null).length;
 
   useEffect(() => {
     const mods: any = {};
@@ -45,7 +46,7 @@ export const RightPanel = () => {
               )}
             >
               <div className="flex justify-between items-center">
-                <Badge className="bg-secondary text-white border-none h-4 px-1.5 text-[8px] font-bold uppercase tracking-tighter">
+                <Badge className="bg-secondary text-white border-none h-5 px-2 text-[9px] font-extrabold uppercase tracking-[0.16em]">
                   {id}
                 </Badge>
                 <div className={cn(
@@ -77,7 +78,7 @@ export const RightPanel = () => {
           <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim">State: Stack</h2>
           <Badge variant="stack" className="text-[9px] h-4 px-1.5 font-bold tracking-tight">SP: {stack.length.toString().padStart(2, '0')}</Badge>
         </div>
-        <ScrollArea className="flex-1 border border-border rounded-lg bg-background/20 shadow-inner">
+        <ScrollArea className={cn("flex-1 border border-border rounded-lg bg-background/20 shadow-inner", errorFlashTarget === 'STACK' && "stack-error-flash")}>
           {stack.length === 0 ? (
             <div className="p-8 text-center text-dim italic text-[11px]">Stack is empty</div>
           ) : (
@@ -96,21 +97,38 @@ export const RightPanel = () => {
       <div className="h-px bg-border w-full" />
 
       <section>
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim mb-3">State: Memory</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim">State: Memory</h2>
+            <p className="mt-1 text-[10px] text-muted-foreground">Detailed inspector for exact LOAD / STORE values.</p>
+          </div>
+          <Badge className="bg-warning/15 text-warning border border-warning/20 h-5 px-2 text-[9px] font-extrabold">
+            {activeMemoryCount}/16 active
+          </Badge>
+        </div>
         <div className="grid grid-cols-4 gap-2">
           {memory.slice(0, 16).map((val, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={cn(
-                "aspect-square flex flex-col items-center justify-center border border-border rounded-lg bg-warning/5 hover:bg-warning/20 transition-all duration-300 group cursor-default shadow-sm hover:shadow-md",
-                lastWrittenMemAddr === i && "bg-amber-200 border-amber-400"
+                "aspect-square flex flex-col items-center justify-center border border-border rounded-xl bg-warning/5 hover:bg-warning/15 transition-all duration-300 group cursor-default shadow-sm hover:shadow-md",
+                val !== null && "bg-warning/10 border-warning/30",
+                lastWrittenMemAddr === i && "bg-amber-200 border-amber-400 ring-2 ring-amber-300",
+                lastMemoryAccess?.addr === i && lastMemoryAccess.kind === 'read' && "bg-sky-50 border-sky-300 ring-2 ring-sky-200",
+                lastMemoryAccess?.addr === i && lastMemoryAccess.kind === 'write' && "bg-amber-200 border-amber-400 ring-2 ring-amber-300",
+                errorFlashTarget === 'RAM' && "memory-error-flash"
               )}
             >
               <span className="text-[8px] text-dim leading-none mb-1 font-bold group-hover:text-warning">[{i}]</span>
-              <span key={val} className="text-[12px] font-code font-bold text-warning/80 group-hover:text-warning number-flip-in">{val || '0'}</span>
+              <span key={`${i}-${val}`} className={cn("text-[13px] font-code font-extrabold group-hover:text-warning number-flip-in", val === null ? "text-warning/35" : "text-warning/85")}>
+                {val === null ? '--' : val}
+              </span>
             </div>
           ))}
         </div>
+        <p className="mt-3 text-[10px] text-muted-foreground">
+          {activeMemoryCount === 0 ? 'Memory stays empty until a STORE instruction writes into a slot.' : 'State: Memory keeps the final live values after execution ends.'}
+        </p>
       </section>
     </aside>
   );

@@ -8,6 +8,15 @@ export interface AnimationSpec {
   type: string;
 }
 
+export interface EngineAnimation {
+  type: 'move';
+  start: string;
+  end: string;
+  color: string;
+  label: string;
+  delay?: number;
+}
+
 export interface ExecutionResult {
   type?: string;
   nextPC?: number;
@@ -16,13 +25,14 @@ export interface ExecutionResult {
   stack?: number[];
   log?: string;
   logMessage: string;
-  animations: any[];
+  animations: EngineAnimation[];
   animationSpec?: AnimationSpec;
   activeBuildings: Record<string, 'source' | 'dest' | 'error' | null>;
   requiresInput?: { register: string };
   error?: boolean;
   isError?: boolean;
   halted?: boolean;
+  errorTarget?: 'RAM' | 'STACK' | 'PC' | 'EDITOR';
 }
 
 export function executeInstruction(
@@ -70,6 +80,7 @@ export function executeInstruction(
         result.type = 'ERROR';
         result.error = true;
         result.isError = true;
+        result.errorTarget = 'RAM';
         result.nextPC = pc;
         result.logMessage = `Memory error: address ${parsedAddress} is out of bounds (valid: 0–${memory.length - 1})`;
         result.log = result.logMessage;
@@ -92,6 +103,7 @@ export function executeInstruction(
         result.type = 'ERROR';
         result.error = true;
         result.isError = true;
+        result.errorTarget = 'RAM';
         result.nextPC = pc;
         result.logMessage = `Memory error: address ${parsedAddress} is out of bounds (valid: 0–${memory.length - 1})`;
         result.log = result.logMessage;
@@ -140,6 +152,7 @@ export function executeInstruction(
       const dest = args[0];
       if (stack.length === 0) {
         result.isError = true;
+        result.errorTarget = 'STACK';
         result.logMessage = `STACK UNDERFLOW: Pop from empty stack`;
         result.activeBuildings = { 'STACK': 'error' };
         break;
@@ -160,6 +173,7 @@ export function executeInstruction(
         result.type = 'ERROR';
         result.error = true;
         result.isError = true;
+        result.errorTarget = 'PC';
         result.nextPC = pc;
         result.logMessage = `JUMP error: label "${labelName}" not found in program`;
         result.log = result.logMessage;
@@ -194,6 +208,7 @@ export function executeInstruction(
           result.type = 'ERROR';
           result.error = true;
           result.isError = true;
+          result.errorTarget = 'PC';
           result.nextPC = pc;
           result.logMessage = `JUMP error: label "${label}" not found in program`;
           result.log = result.logMessage;
@@ -229,6 +244,7 @@ export function executeInstruction(
     }
     default:
       result.isError = true;
+      result.errorTarget = 'EDITOR';
       result.logMessage = `ILLEGAL OPCODE: ${opcode}`;
       break;
   }
