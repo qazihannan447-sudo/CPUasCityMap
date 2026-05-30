@@ -90,8 +90,8 @@ export const CityMap = () => {
   );
 
   return (
-    <div className={cn('relative flex-1 bg-map overflow-auto transition-all duration-700 city-frame', theme === 'night' && 'night-mode')}>
-      <div className="relative mx-auto h-full min-h-[700px] w-[900px] px-5 py-4">
+    <div className={cn('relative flex-1 overflow-auto bg-map transition-all duration-700 city-frame', theme === 'night' && 'night-mode')}>
+      <div className="relative mx-auto h-full min-h-[780px] w-[980px] px-5 py-4">
         <div className="absolute inset-[8px] rounded-[36px] bg-white/40 night-mode:bg-black/10 backdrop-blur-[2px] border border-white/30 night-mode:border-white/5 shadow-[0_24px_60px_rgba(116,82,32,0.16)]" />
         <div className="absolute inset-[18px] rounded-[30px] border border-[#DCCFB8]/70 night-mode:border-[#514539]/60 pointer-events-none" />
 
@@ -170,11 +170,11 @@ export const CityMap = () => {
               color={building.bodyClassName}
               headerColor={building.headerClassName}
               borderColor={building.borderClassName}
-              titleClassName="text-[11px] font-black tracking-[0.18em] text-[#2B1D14] bg-[#E9D4AF] px-1.5 py-0.5 rounded-md shadow-sm"
-              contentClassName="pt-1 bg-[#433429]"
+              titleClassName="text-[11px] font-black tracking-[0.18em] text-[#113764] bg-[#D6E8FF] px-1.5 py-0.5 rounded-md shadow-sm"
+              contentClassName="pt-1 bg-[#234D7F]"
             >
               <div className="flex items-center justify-center h-full">
-                <span key={registers[id]} className="text-[17px] font-code font-extrabold text-[#F7D49A] number-flip-in drop-shadow-[0_0_10px_rgba(215,160,87,0.18)]">
+                <span key={registers[id]} className="text-[17px] font-code font-extrabold text-[#F4F9FF] number-flip-in drop-shadow-[0_0_10px_rgba(127,177,237,0.35)]">
                   {registers[id] ?? '—'}
                 </span>
               </div>

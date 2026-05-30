@@ -7,7 +7,7 @@ import { RightPanel } from '@/components/layout/RightPanel';
 import { CityMap } from '@/components/city/CityMap';
 import { BottomBar } from '@/components/layout/BottomBar';
 import { Toaster } from '@/components/ui/toaster';
-import { useCPUStore, SAMPLES } from '@/store/use-cpu-store';
+import { useCPUStore } from '@/store/use-cpu-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -70,15 +70,15 @@ export default function CPUCity() {
   const currentInstruction = instructions[pc]?.raw || (pc === -1 ? "HALTED" : "IDLE");
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden selection:bg-primary/20 transition-colors duration-500">
+    <div className="flex h-screen flex-col overflow-hidden selection:bg-primary/20 transition-colors duration-500">
       <Header 
         currentInstruction={currentInstruction} 
         onReset={reset}
         onUndo={undo}
       />
       
-      <main className="flex-1 flex overflow-hidden">
-        <LeftPanel onLoadShowcase={() => useCPUStore.getState().setProgram(SAMPLES.Showcase, { pushHistory: true })} />
+      <main className="flex flex-1 overflow-hidden">
+        <LeftPanel />
         
         <CityMap />
         

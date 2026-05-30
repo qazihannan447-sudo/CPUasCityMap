@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, ChevronDown, FileCode, PlaySquare, Plus, TriangleAlert } from 'lucide-react';
+import { Check, ChevronDown, FileCode, Plus, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCPUStore, SAMPLES } from '@/store/use-cpu-store';
 import {
@@ -16,11 +16,7 @@ import { Button } from '@/components/ui/button';
 const LINE_HEIGHT = 22;
 const EDITOR_PADDING_Y = 14;
 
-export const LeftPanel = ({
-  onLoadShowcase,
-}: {
-  onLoadShowcase: () => void;
-}) => {
+export const LeftPanel = () => {
   const {
     instructions,
     pc,
@@ -72,7 +68,7 @@ export const LeftPanel = ({
   }, [lastErrorLine, programErrors]);
 
   return (
-    <aside className="w-[320px] h-full bg-panel border-r border-border flex flex-col p-4 gap-4 transition-colors duration-500">
+    <aside className="w-[320px] min-h-[780px] bg-panel border-r border-border flex flex-col p-4 gap-4 transition-colors duration-500">
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -97,14 +93,10 @@ export const LeftPanel = ({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <Button variant="outline" size="sm" onClick={handleNewProgram} className="h-6 px-2 text-[9px] gap-1">
               <Plus className="w-3 h-3" />
               New
-            </Button>
-            <Button variant="outline" size="sm" onClick={onLoadShowcase} className="h-6 px-2 text-[9px] gap-1 border-primary/30 text-primary">
-              <PlaySquare className="w-3 h-3" />
-              Showcase
             </Button>
           </div>
         </div>
@@ -185,7 +177,7 @@ export const LeftPanel = ({
         )}
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="relative flex h-[300px] flex-col overflow-hidden">
         <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim mb-3">Execution Log</h2>
 
         <div className="absolute top-[28px] left-0 right-0 h-8 bg-gradient-to-b from-panel to-transparent z-10 pointer-events-none opacity-60" />

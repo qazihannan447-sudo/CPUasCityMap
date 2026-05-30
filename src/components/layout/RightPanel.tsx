@@ -27,13 +27,15 @@ export const RightPanel = () => {
   const Sparkline = () => (
     <div className="flex items-end gap-[1px] h-3 w-10 opacity-30">
       {[40, 70, 30, 90, 50].map((h, i) => (
-        <div key={i} className="bg-primary/60 w-1.5" style={{ height: `${h}%` }} />
+        <div key={i} className="bg-secondary/70 w-1.5" style={{ height: `${h}%` }} />
       ))}
     </div>
   );
 
   return (
-    <aside className="w-[280px] h-full bg-panel border-l border-border flex flex-col p-4 gap-6 transition-colors duration-500">
+    <aside className="h-full w-[280px] overflow-hidden bg-panel border-l border-border transition-colors duration-500">
+      <ScrollArea className="h-full px-4 py-4">
+      <div className="flex flex-col gap-6 pb-4">
       <section>
         <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim mb-3">State: Registers</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -58,7 +60,7 @@ export const RightPanel = () => {
               
               <span key={value} className={cn(
                 "font-code text-[16px] text-center font-bold number-flip-in",
-                activeBuildings[id] === 'dest' ? 'text-primary' : 'text-foreground'
+                activeBuildings[id] === 'dest' ? 'text-secondary' : 'text-secondary/90'
               )}>
                 {value !== null && value !== undefined ? value : '—'}
               </span>
@@ -73,12 +75,12 @@ export const RightPanel = () => {
 
       <div className="h-px bg-border w-full" />
 
-      <section className="flex-1 flex flex-col overflow-hidden">
+      <section className="flex flex-col">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-dim">State: Stack</h2>
           <Badge variant="stack" className="text-[9px] h-4 px-1.5 font-bold tracking-tight">SP: {stack.length.toString().padStart(2, '0')}</Badge>
         </div>
-        <ScrollArea className={cn("flex-1 border border-border rounded-lg bg-background/20 shadow-inner", errorFlashTarget === 'STACK' && "stack-error-flash")}>
+        <div className={cn("border border-border rounded-lg bg-background/20 shadow-inner", errorFlashTarget === 'STACK' && "stack-error-flash")}>
           {stack.length === 0 ? (
             <div className="p-8 text-center text-dim italic text-[11px]">Stack is empty</div>
           ) : (
@@ -91,7 +93,7 @@ export const RightPanel = () => {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </section>
 
       <div className="h-px bg-border w-full" />
@@ -130,6 +132,8 @@ export const RightPanel = () => {
           {activeMemoryCount === 0 ? 'Memory stays empty until a STORE instruction writes into a slot.' : 'State: Memory keeps the final live values after execution ends.'}
         </p>
       </section>
+      </div>
+      </ScrollArea>
     </aside>
   );
 };

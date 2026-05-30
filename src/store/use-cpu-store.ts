@@ -152,20 +152,49 @@ READ R2
 ADD R1 R2 R3
 STORE R3 MEM[0]
 HLT`,
-  Showcase: `# Full CPU City showcase
+  'Signal Relay Grid': `# READ + math + memory + stack + branching
 READ R1
-LOADI R2 3
+READ R2
 ADD R1 R2 R3
 STORE R3 MEM[0]
 PUSH R1
 PUSH R2
 POP R4
 POP R5
-SUB R3 R2 R3
-JUMPIF R3 > 0 done
-LOADI R3 0
+MUL R4 R5 R0
+STORE R0 MEM[1]
+LOAD R2 MEM[0]
+LOAD R3 MEM[1]
+SUB R3 R2 R4
+JUMPIF R4 > 50 amplify
+ADD R4 5 R5
+JUMP finish
+amplify:
+MUL R4 2 R5
+finish:
+STORE R5 MEM[2]
+HLT`,
+  'Factory Shift Cycle': `# Looping pass through every core district
+READ R0
+LOADI R1 1
+LOADI R2 4
+loop:
+ADD R0 R1 R0
+STORE R0 MEM[1]
+PUSH R0
+ADD R1 1 R1
+JUMPIF R1 <= R2 loop
+POP R3
+POP R4
+LOAD R5 MEM[1]
+MUL R3 R4 R2
+SUB R2 R5 R1
+JUMPIF R1 != 0 adjust
+JUMP done
+adjust:
+ADD R1 R5 R0
+STORE R0 MEM[3]
 done:
-LOAD R5 MEM[0]
 HLT`,
 } as const;
 
