@@ -17,13 +17,14 @@ function instruction(opcode: string, args: string[] = []): Instruction {
 
 test('executor performs arithmetic and writes destination register', () => {
   const state = baseState();
-  state.registers.R1 = 7;
+  state.registers.R2 = 8;
+  state.registers.R5 = 4;
 
-  const result = executeInstruction(instruction('ADD', ['R1', '5', 'R2']), state);
+  const result = executeInstruction(instruction('ADD', ['R4', 'R2', 'R5']), state);
 
-  assert.equal(result.registers?.R2, 12);
+  assert.equal(result.registers?.R4, 12);
   assert.equal(result.animations.length, 3);
-  assert.match(result.logMessage, /R2 = 7 \+ 5 = 12/);
+  assert.match(result.logMessage, /R4 = 8 \+ 4 = 12/);
 });
 
 test('executor writes and reads memory correctly', () => {

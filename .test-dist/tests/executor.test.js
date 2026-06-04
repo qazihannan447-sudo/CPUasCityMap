@@ -18,11 +18,12 @@ function instruction(opcode, args = []) {
 }
 (0, node_test_1.default)('executor performs arithmetic and writes destination register', () => {
     const state = baseState();
-    state.registers.R1 = 7;
-    const result = (0, executor_1.executeInstruction)(instruction('ADD', ['R1', '5', 'R2']), state);
-    strict_1.default.equal(result.registers?.R2, 12);
+    state.registers.R2 = 8;
+    state.registers.R5 = 4;
+    const result = (0, executor_1.executeInstruction)(instruction('ADD', ['R4', 'R2', 'R5']), state);
+    strict_1.default.equal(result.registers?.R4, 12);
     strict_1.default.equal(result.animations.length, 3);
-    strict_1.default.match(result.logMessage, /R2 = 7 \+ 5 = 12/);
+    strict_1.default.match(result.logMessage, /R4 = 8 \+ 4 = 12/);
 });
 (0, node_test_1.default)('executor writes and reads memory correctly', () => {
     const writeState = baseState();

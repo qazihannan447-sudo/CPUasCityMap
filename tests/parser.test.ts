@@ -5,9 +5,9 @@ import { parseProgram } from '../src/engine/parser';
 test('parser accepts valid labels and instructions', () => {
   const parsed = parseProgram(`
     start:
-    LOADI R1 5
-    ADD R1 3 R2
-    JUMPIF R2 > 4 done
+    LOADI R2 5
+    ADD R4 R2 3
+    JUMPIF R4 > 4 done
     done:
     HLT
   `);

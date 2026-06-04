@@ -77,7 +77,7 @@ function executeInstruction(instr, state) {
         case 'ADD':
         case 'SUB':
         case 'MUL': {
-            const [s1, s2, dest] = args;
+            const [dest, s1, s2] = args;
             const v1 = getVal(s1);
             const v2 = getVal(s2);
             let res = 0;
@@ -89,7 +89,7 @@ function executeInstruction(instr, state) {
                 res = v1 * v2;
             result.registers = { ...registers, [dest]: res };
             result.logMessage = `${dest} = ${v1} ${opcode === 'ADD' ? '+' : opcode === 'SUB' ? '-' : '*'} ${v2} = ${res}`;
-            result.activeBuildings = { [s1]: 'source', [s2]: 'source', 'ALU': 'dest' };
+            result.activeBuildings = { [s1]: 'source', [s2]: 'source', 'ALU': 'dest', [dest]: 'dest' };
             result.animations = [
                 { type: 'move', start: s1, end: 'ALU', color: '#1D9E75', label: v1.toString(), delay: 0 },
                 { type: 'move', start: s2, end: 'ALU', color: '#1D9E75', label: v2.toString(), delay: 0 },

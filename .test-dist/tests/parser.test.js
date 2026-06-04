@@ -9,9 +9,9 @@ const parser_1 = require("../src/engine/parser");
 (0, node_test_1.default)('parser accepts valid labels and instructions', () => {
     const parsed = (0, parser_1.parseProgram)(`
     start:
-    LOADI R1 5
-    ADD R1 3 R2
-    JUMPIF R2 > 4 done
+    LOADI R2 5
+    ADD R4 R2 3
+    JUMPIF R4 > 4 done
     done:
     HLT
   `);

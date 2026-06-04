@@ -142,7 +142,7 @@ export const LeftPanel = () => {
             value={codeValue}
             onChange={handleCodeChange}
             onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-            placeholder={'# Write your assembly program here\n# Example:\nLOADI R1 5\nLOADI R2 3\nADD R1 R2 R3'}
+            placeholder={'# Write your assembly program here\n# Example:\nLOADI R2 5\nLOADI R5 3\nADD R4 R2 R5'}
             className="w-full h-[240px] bg-transparent text-[#E8E3D4] font-code text-[12px] pl-14 pr-4 pt-[14px] pb-[14px] resize-none focus:outline-none leading-[22px] selection:bg-primary/40 relative z-10"
             spellCheck={false}
           />

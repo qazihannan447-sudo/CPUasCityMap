@@ -147,9 +147,9 @@ function validateInstruction(instruction, labels) {
         case 'SUB':
         case 'MUL':
             if (expectArgs(3)) {
-                ensureValue(args[0], 'First operand');
-                ensureValue(args[1], 'Second operand');
-                ensureRegister(args[2], 'Destination register');
+                ensureRegister(args[0], 'Destination register');
+                ensureValue(args[1], 'First operand');
+                ensureValue(args[2], 'Second operand');
             }
             break;
         case 'PUSH':
