@@ -28,7 +28,7 @@ function instruction(opcode, args = []) {
 (0, node_test_1.default)('executor writes and reads memory correctly', () => {
     const writeState = baseState();
     writeState.registers.R3 = 9;
-    const storeResult = (0, executor_1.executeInstruction)(instruction('STORE', ['R3', 'MEM[2]']), writeState);
+    const storeResult = (0, executor_1.executeInstruction)(instruction('STORE', ['MEM[2]', 'R3']), writeState);
     strict_1.default.equal(storeResult.memory?.[2], 9);
     const readState = baseState();
     readState.memory[2] = 9;
@@ -44,7 +44,7 @@ function instruction(opcode, args = []) {
 (0, node_test_1.default)('executor reports out-of-bounds memory access', () => {
     const state = baseState();
     state.registers.R1 = 4;
-    const result = (0, executor_1.executeInstruction)(instruction('STORE', ['R1', 'MEM[99]']), state);
+    const result = (0, executor_1.executeInstruction)(instruction('STORE', ['MEM[99]', 'R1']), state);
     strict_1.default.equal(result.isError, true);
     strict_1.default.equal(result.errorTarget, 'RAM');
     strict_1.default.match(result.logMessage, /out of bounds/);

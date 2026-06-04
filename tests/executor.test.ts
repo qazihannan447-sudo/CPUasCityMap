@@ -30,7 +30,7 @@ test('executor performs arithmetic and writes destination register', () => {
 test('executor writes and reads memory correctly', () => {
   const writeState = baseState();
   writeState.registers.R3 = 9;
-  const storeResult = executeInstruction(instruction('STORE', ['R3', 'MEM[2]']), writeState);
+  const storeResult = executeInstruction(instruction('STORE', ['MEM[2]', 'R3']), writeState);
 
   assert.equal(storeResult.memory?.[2], 9);
 
@@ -52,7 +52,7 @@ test('executor reports stack underflow', () => {
 test('executor reports out-of-bounds memory access', () => {
   const state = baseState();
   state.registers.R1 = 4;
-  const result = executeInstruction(instruction('STORE', ['R1', 'MEM[99]']), state);
+  const result = executeInstruction(instruction('STORE', ['MEM[99]', 'R1']), state);
 
   assert.equal(result.isError, true);
   assert.equal(result.errorTarget, 'RAM');

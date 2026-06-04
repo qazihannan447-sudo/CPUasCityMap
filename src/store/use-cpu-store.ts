@@ -375,7 +375,7 @@ export const useCPUStore = create<CPUState>((set, get) => ({
     const nextRegisters = result.registers ?? registers;
     const nextMemory = result.memory ?? memory;
     const nextStack = result.stack ?? stack;
-    const writtenMemAddr = result.memory ? getMemoryAddr(instruction.args[1]) : null;
+    const writtenMemAddr = result.memory ? getMemoryAddr(instruction.args[0]) : null;
     const memoryAccess = getMemoryAccessEvent(instruction);
     const nextPC = result.nextPC ?? pc + 1;
     const didCompleteNaturally = result.halted !== true && nextPC >= instructions.length;
@@ -513,7 +513,7 @@ function getMemoryAccessEvent(instruction: Instruction) {
   }
 
   if (instruction.opcode === 'STORE') {
-    const addr = getMemoryAddr(instruction.args[1]);
+    const addr = getMemoryAddr(instruction.args[0]);
     return addr !== null ? { addr, kind: 'write' as const } : null;
   }
 

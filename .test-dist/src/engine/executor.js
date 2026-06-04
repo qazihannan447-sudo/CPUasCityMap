@@ -51,8 +51,9 @@ function executeInstruction(instr, state) {
             break;
         }
         case 'STORE': {
-            const src = args[0];
-            const parsedAddress = args[1]?.replace('MEM[', '').replace('[', '').replace(']', '') ?? '';
+            const dest = args[0];
+            const src = args[1];
+            const parsedAddress = dest?.replace('MEM[', '').replace('[', '').replace(']', '') ?? '';
             const addr = parseInt(parsedAddress);
             const val = registers[src];
             if (isNaN(addr) || addr < 0 || addr >= memory.length) {

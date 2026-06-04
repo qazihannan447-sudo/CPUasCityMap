@@ -139,8 +139,8 @@ function validateInstruction(instruction, labels) {
             break;
         case 'STORE':
             if (expectArgs(2)) {
-                ensureRegister(args[0], 'Source register');
-                ensureMemory(args[1], 'Memory operand');
+                ensureMemory(args[0], 'Destination memory');
+                ensureRegister(args[1], 'Source register');
             }
             break;
         case 'ADD':

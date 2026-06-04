@@ -46,7 +46,7 @@ Common instructions include:
 - MUL Rx, Ry, Rz (Multiply Ry and Rz, store in Rx)
 - DIV Rx, Ry, Rz (Divide Ry by Rz, store in Rx)
 - LOAD Rx, [address] (Load value from memory at address into Rx)
-- STORE Rx, [address] (Store value from Rx into memory at address)
+- STORE MEM[address] Rx (Store value from Rx into memory at address)
 - PUSH Rx (Push value from Rx onto the stack)
 - POP Rx (Pop value from stack into Rx)
 - JMP <label> (Unconditional jump to label)
